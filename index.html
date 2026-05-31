@@ -953,8 +953,8 @@
 
   // ---------- the car: racing line + drive ----------
   let carOn=false, carDist=0, racing=null, racingDirty=true, carPos=null, carTrail=[];
-  const V_MAX = GRID*9.2;     // top speed (world px/sec) on straights
-  const FLAT_R = GRID*6;      // corner radius (world) you can take flat-out
+  const V_MAX = GRID*13.5;    // top speed (world px/sec) on straights
+  const FLAT_R = GRID*7.5;    // corner radius (world) you can take flat-out
 
   function buildRacingLine(){
     const model=build();
@@ -1024,16 +1024,21 @@
     }
     // attractor target + weight per point (0 weight = pure curvature there)
     const tgt=new Array(N).fill(0), W=new Array(N).fill(0);
-    // Only pin the apex of each corner to the inside kerb.
-    // The curvature minimiser then finds the globally smoothest path through those fixed
-    // interior points — which is mathematically the out-in-out line with no zigzag.
+    // Pin the apex of each corner hard to the inside kerb.
+    // Pin the entry and exit points to the outside kerb.
+    // Curvature minimiser blends these into a smooth out-in-out line.
     for(const k in groups){
       const idxs=groups[k];
       const n=idxs.length;
       const ia=idxs[Math.floor(n/2)];
       const sgn=pts[ia].inSign;
-      tgt[ia]=sgn*maxOff*0.9;
-      W[ia]=7;
+      tgt[ia]=sgn*maxOff;   W[ia]=9;    // apex: hard on inside kerb
+      // entry: outside kerb — 20% into the corner arc
+      const ie=idxs[Math.max(0, Math.round(n*0.15))];
+      tgt[ie]=-sgn*maxOff;  W[ie]=6;
+      // exit: outside kerb — 80% through the corner arc
+      const ix=idxs[Math.min(n-1, Math.round(n*0.85))];
+      tgt[ix]=-sgn*maxOff;  W[ix]=6;
     }
     const off=new Array(N).fill(0);
     const Px=i=>pts[i].x+pts[i].nx*off[i], Py=i=>pts[i].y+pts[i].ny*off[i];
@@ -1112,8 +1117,8 @@
   // TRAIL-BRAKE — keep braking as it turns in, easing off the brakes as lateral load builds.
   function speedProfile(radius, ds, closed, N){
     const aGrip=(V_MAX*V_MAX)/FLAT_R;   // total grip (the friction circle)
-    const brakeMul=1.9;                 // brakes + aero are strong
-    const accelMul=0.62;                // throttle is power-limited
+    const brakeMul=2.2;                 // brakes + aero are strong
+    const accelMul=0.38;                // power-limited: fast top speed, slow 0-60
     const v=new Array(N);
     for(let i=0;i<N;i++) v[i]=Math.min(V_MAX, Math.sqrt(aGrip*radius[i]));   // grip cap on the line
     const passes=closed?5:3;
