@@ -1339,7 +1339,10 @@
       // Speed — base from racing line × global multiplier
       const s=sampleRN(baseRl,car.dist);
       // tiny rubber-band: P10 is 3% faster than P1, each step ~0.33%
-      const posBonus=((car.position||1)-1)/9*0.03;
+      // rubber-band: fades to 0 at V_MAX so straight-line top speed stays equal
+      const posFrac=((car.position||1)-1)/9;
+      const spdFrac=Math.min(1,s.v/V_MAX);
+      const posBonus=posFrac*0.08*(1-spdFrac*spdFrac);
       let spd=s.v*SPD*(1/car.paceMul)*(1-car.damage*0.12)*car.lapVar*(1+posBonus);
 
       if(blocker&&blockFwd<CHLL*10){
