@@ -1332,20 +1332,21 @@
       for(const o of raceCars){
         if(o===car||o.finished||o.dnf) continue;
         const fd=((o.dist-car.dist)%total+total)%total;
-        if(fd<0.05||fd>CHLL*5) continue;
-        if(Math.abs(o.lat-car.lat)<CHLW*2.1&&fd<blockFwd){ blocker=o; blockFwd=fd; }
+        if(fd<0.05||fd>CHLL*10) continue;
+        if(Math.abs(o.lat-car.lat)<CHLW*1.8&&fd<blockFwd){ blocker=o; blockFwd=fd; }
       }
 
       // Speed — base from racing line × global multiplier
       const s=sampleRN(baseRl,car.dist);
       let spd=s.v*SPD*(1/car.paceMul)*(1-car.damage*0.12)*car.lapVar;
 
-      if(blocker&&blockFwd<CHLL*2.8){
-        // Brake to match car ahead; harder as gap closes
+      if(blocker&&blockFwd<CHLL*10){
         const bs=sampleRN(baseRl,blocker.dist);
         const bSpd=bs.v*SPD*(1/blocker.paceMul)*(1-blocker.damage*0.12)*blocker.lapVar;
-        const t=Math.max(0,Math.min(1,(blockFwd-CHLL)/(CHLL*1.8)));
-        spd=Math.min(spd, bSpd*(0.90+0.12*t));
+        // t=0 when touching (CHLL*1.2), t=1 at full detection range (CHLL*10)
+        const t=Math.max(0,Math.min(1,(blockFwd-CHLL*1.2)/(CHLL*8.8)));
+        // close: 45% of blocker speed (heavy braking); far: 115% (natural closing)
+        spd=Math.min(spd, bSpd*(0.45+0.70*t));
       }
 
       const dd=spd*dt;
