@@ -744,7 +744,7 @@
     const p=pieces[selected];
     if(p.type==='straight') p.len=Math.max(MIN_LEN, p.len+d);
     else p.r=Math.max(MIN_R, p.r+d);
-    racingDirty=true; refreshSelbar(); draw();
+    refreshSelbar(); draw();
   }
 
   // ---------- actions ----------
@@ -754,13 +754,13 @@
     else p={type:'corner', angle:angleOf(type), dir:forceDir||dir, r:DEF_R};
     pieces.push(p);
     selected=pieces.length-1;
-    racingDirty=true; refreshSelbar(); draw();
+    refreshSelbar(); draw();
   }
 
-  function undo(){ pieces.pop(); if(selected>=pieces.length) selected=pieces.length?pieces.length-1:null; racingDirty=true; refreshSelbar(); draw(); }
-  function clearAll(){ pieces=[]; selected=null; racingDirty=true; refreshSelbar(); draw(); }
-  function deleteSel(){ if(selected==null) return; pieces.splice(selected,1); selected = pieces.length? Math.min(selected, pieces.length-1):null; racingDirty=true; refreshSelbar(); draw(); }
-  function flipSel(){ if(selected==null) return; const p=pieces[selected]; if(p.type==='corner'){ p.dir = p.dir==='L'?'R':'L'; racingDirty=true; draw(); } }
+  function undo(){ pieces.pop(); if(selected>=pieces.length) selected=pieces.length?pieces.length-1:null; refreshSelbar(); draw(); }
+  function clearAll(){ pieces=[]; selected=null; refreshSelbar(); draw(); }
+  function deleteSel(){ if(selected==null) return; pieces.splice(selected,1); selected = pieces.length? Math.min(selected, pieces.length-1):null; refreshSelbar(); draw(); }
+  function flipSel(){ if(selected==null) return; const p=pieces[selected]; if(p.type==='corner'){ p.dir = p.dir==='L'?'R':'L'; draw(); } }
 
   // ---------- loop closure detection (for magnetic snap on the final straight) ----------
   function closeInfo(){
@@ -816,7 +816,7 @@
       {type:'straight',len:3},
       {type:'corner',angle:90,dir:'R',r:2},
     ];
-    selected=null; racingDirty=true; refreshSelbar(); fitView();
+    selected=null; refreshSelbar(); fitView();
   }
 
   // ---------- hit testing ----------
@@ -895,11 +895,11 @@
     } else {
       p.r=Math.max(MIN_R, Math.round(Math.hypot(w.x-s.cx, w.y-s.cy)/GRID));
     }
-    racingDirty=true; refreshSelbar(); draw();
+    refreshSelbar(); draw();
   }
   function rotatePiece(idx){
     const p=pieces[idx];
-    if(p.type==='corner'){ p.dir = p.dir==='L'?'R':'L'; racingDirty=true; draw(); }
+    if(p.type==='corner'){ p.dir = p.dir==='L'?'R':'L'; draw(); }
   }
 
   // zoom
@@ -1004,7 +1004,7 @@
   document.getElementById('fileInput').onchange=e=>{
     const f=e.target.files[0]; if(!f) return;
     const rd=new FileReader();
-    rd.onload=()=>{ try{ const d=JSON.parse(rd.result); if(d.pieces){ pieces=d.pieces; selected=null; racingDirty=true; refreshSelbar(); fitView(); } }catch(err){ alert('Could not read that file.'); } };
+    rd.onload=()=>{ try{ const d=JSON.parse(rd.result); if(d.pieces){ pieces=d.pieces; selected=null; refreshSelbar(); fitView(); } }catch(err){ alert('Could not read that file.'); } };
     rd.readAsText(f);
     e.target.value='';
   };
