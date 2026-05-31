@@ -1257,7 +1257,7 @@
         totalDist:-(row+1)*gridGap,
         gridLat:(col===0?-1:1)*TRACK_WORLD*0.24,
         trail:[], damage:0, dnf:false, finished:false,
-        lapVar:1.0, overtakeOff:0, overtakeTimer:0, crashEffect:0,
+        lapVar:1.0, overtakeOff:0, overtakeTgt:0, overtakeTimer:0, crashEffect:0,
         pos:null, ang:0, position:idx+1, reactionBonus:0,
       };
     });
@@ -1301,7 +1301,8 @@
       const dd=spd*dt; car.dist+=dd; car.totalDist+=dd;
       if(car.dist>=baseRl.total){ car.dist-=baseRl.total; car.lapsDone++; car.lapVar=0.987+Math.random()*0.026; }
       if(car.lapsDone>=RACE_LAPS){ car.finished=true; if(!raceFinishTime) raceFinishTime=Date.now(); continue; }
-      car.overtakeOff*=0.955; if(car.overtakeTimer>0) car.overtakeTimer-=dt;
+      if(car.overtakeTimer>0) car.overtakeTimer-=dt; else car.overtakeTgt=0;
+      car.overtakeOff+=(car.overtakeTgt-car.overtakeOff)*Math.min(1,dt*3.5);
       car.crashEffect*=0.88;
       const s2=sampleRN(baseRl,car.dist);
       const lat=lineLat(car.dist,baseRl.total,car.seed)*car.maxLat+car.overtakeOff;
@@ -1317,7 +1318,7 @@
         if(dx*dx+dy*dy<cw*cw){
           const behind=a.totalDist<b.totalDist?a:b;
           if(behind.overtakeTimer<=0){
-            behind.overtakeOff=(Math.random()<0.5?1:-1)*TRACK_WORLD*0.22;
+            behind.overtakeTgt=(Math.random()<0.5?1:-1)*TRACK_WORLD*0.22;
             behind.overtakeTimer=1.6+Math.random()*1.4;
           }
           const isMerc=a.team==='Mercedes'||b.team==='Mercedes';
