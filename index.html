@@ -1375,64 +1375,65 @@
     }
 
     const c = car.color;
-    const S = TRACK_WORLD;
-    const BW = S*0.065;         // body half-width (very narrow spine)
-    const BL = S*0.295;         // body half-length
-    const TW = S*0.093;         // tyre half-depth (longitudinal)
-    const TH = S*0.091;         // tyre half-span (lateral, ~square)
-    const TY = S*0.222;         // tyre centre from car centreline
-    const tr = TH*0.09;         // tiny corner radius → blocky tyre
-    const RX = -S*0.148;        // rear axle x
-    const FX =  S*0.133;        // front axle x
-    const armL = TY-TH-BW;     // suspension arm length
-    const AW = S*0.018;         // arm width
-    const rwT = S*0.038;        // rear wing bar thickness
-    const fwT = S*0.035;        // front wing bar thickness
-    const RWS = TY+TH+S*0.018;  // rear wing half-span (slightly wider than tyres)
-    const FWS = TY+TH-S*0.010;  // front wing half-span
-    const nsL = S*0.072;        // nose stub length
-    const nsW = BW*1.25;        // nose stub half-width
+    // SVG was 512×512, car centre at (256,286), facing down.
+    // Rotated 90° CCW so car faces +x: canvas=(svg_y-286, 256-svg_x)*SC
+    const SC = TRACK_WORLD / 400;
+    const f = (x,y,w,h,r) => { rr(x*SC,y*SC,w*SC,h*SC,r*SC); ctx.fill(); };
+    const p = pts => {
+      ctx.beginPath();
+      pts.forEach(([x,y],i) => i ? ctx.lineTo(x*SC,y*SC) : ctx.moveTo(x*SC,y*SC));
+      ctx.closePath(); ctx.fill();
+    };
 
-    // rear wing (widest element, flat bar)
-    ctx.fillStyle = c;
-    rr(-BL-rwT, -RWS, rwT, RWS*2, S*0.010); ctx.fill();
+    // rear wing supports
+    ctx.fillStyle='#111111';
+    f(-118, 29,32, 9,2); f(-118,-38,32, 9,2);
 
-    // 3 suspension arms per side — rear axle
-    ctx.fillStyle = '#1e1e1e';
-    for(const dx of [-S*0.052, 0, S*0.052]){
-      rr(RX+dx-AW/2, -(TY-TH), AW, armL, S*0.003); ctx.fill();
-      rr(RX+dx-AW/2,  BW,      AW, armL, S*0.003); ctx.fill();
-    }
-    // 3 suspension arms per side — front axle
-    for(const dx of [-S*0.045, 0, S*0.045]){
-      rr(FX+dx-AW/2, -(TY-TH), AW, armL, S*0.003); ctx.fill();
-      rr(FX+dx-AW/2,  BW,      AW, armL, S*0.003); ctx.fill();
-    }
+    // rear wing
+    ctx.fillStyle=c;
+    f(-136,-66,34,132,1);
 
-    // tyres (4 large blocky near-square blocks)
-    ctx.fillStyle = '#111';
-    rr(RX-TW, -(TY+TH), TW*2, TH*2, tr); ctx.fill();   // rear left
-    rr(RX-TW,  TY-TH,   TW*2, TH*2, tr); ctx.fill();   // rear right
-    rr(FX-TW, -(TY+TH), TW*2, TH*2, tr); ctx.fill();   // front left
-    rr(FX-TW,  TY-TH,   TW*2, TH*2, tr); ctx.fill();   // front right
+    // rear suspension arms
+    ctx.fillStyle='#111111';
+    p([[-66,40],[-77,75],[-85,75],[-77,40]]);
+    p([[-61,40],[-45,75],[-55,75],[-71,40]]);
+    p([[-66,-40],[-77,-75],[-85,-75],[-77,-40]]);
+    p([[-61,-40],[-45,-75],[-55,-75],[-71,-40]]);
 
-    // main body (very narrow spine)
-    ctx.fillStyle = c;
-    rr(-BL, -BW, BL*2, BW*2, BW*0.30); ctx.fill();
+    // rear wheels
+    ctx.fillStyle='#111111';
+    f(-96, 53,70,38,9); f(-96,-91,70,38,9);
 
-    // front wing (flat bar)
-    rr(BL, -FWS, fwT, FWS*2, S*0.010); ctx.fill();
+    // main body upper block
+    ctx.fillStyle=c;
+    f(-88,-40,138,80,6);
 
-    // nose stub
-    rr(BL+fwT, -nsW, nsL, nsW*2, S*0.010); ctx.fill();
+    // main body lower (narrows toward nose)
+    f(44,-30,58,60,1);
 
-    // cockpit (dark rectangle)
-    ctx.fillStyle = '#111';
-    rr(-BW*0.50, -BW*0.65, BW, BW*1.30, BW*0.20); ctx.fill();
+    // cockpit
+    ctx.fillStyle='#111111';
+    f(-42,-14,54,28,8);
+
+    // front suspension arms
+    ctx.fillStyle='#111111';
+    p([[64,30],[75,69],[66,69],[55,30]]);
+    p([[81,30],[96,69],[86,69],[71,30]]);
+    p([[64,-30],[75,-69],[66,-69],[55,-30]]);
+    p([[81,-30],[96,-69],[86,-69],[71,-30]]);
+
+    // front wheels
+    ctx.fillStyle='#111111';
+    f(56, 46,58,34,7); f(56,-80,58,34,7);
+
+    // front wing
+    ctx.fillStyle=c;
+    f(100,-73,36,146,1);
 
     // damage chunks
     if(car.damage>0){
       ctx.fillStyle='rgba(0,0,0,0.82)';
+      const BL=TRACK_WORLD*0.295, BW=TRACK_WORLD*0.065;
       for(let d=0;d<Math.round(car.damage*3);d++){
         rr((d*0.38-0.16)*BL,(d%2===0?0.42:-0.42)*BW,BW*0.40,BW*0.40,BW*0.08); ctx.fill();
       }
