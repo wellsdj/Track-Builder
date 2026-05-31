@@ -1306,7 +1306,9 @@
       car.crashEffect*=0.88;
       const s2=sampleRN(baseRl,car.dist);
       const lat=lineLat(car.dist,baseRl.total,car.seed)*car.maxLat+car.overtakeOff;
-      car.pos={x:s2.x+s2.nx*lat, y:s2.y+s2.ny*lat}; car.ang=s2.ang;
+      car.pos={x:s2.x+s2.nx*lat, y:s2.y+s2.ny*lat};
+      const da=((s2.ang-car.ang+Math.PI*3)%(Math.PI*2))-Math.PI;
+      car.ang+=da*Math.min(1,dt*14);
       car.trail.push({x:car.pos.x,y:car.pos.y}); if(car.trail.length>10) car.trail.shift();
     }
     // close battles → overtake attempts + rare crashes
