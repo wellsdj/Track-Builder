@@ -1,0 +1,1230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>APEX — F1 Track Builder</title>
+<style>
+  :root{
+    --bg:#0c0e11;
+    --bg2:#0f1216;
+    --panel:#14171c;
+    --panel2:#1a1e24;
+    --line:#262b33;
+    --line2:#323843;
+    --asphalt:#2c3036;
+    --asphalt-edge:#eceff4;
+    --kerb:#e10600;
+    --papaya:#ff8000;
+    --papaya-dim:#a85500;
+    --cyan:#19e3cb;
+    --text:#e8ebf1;
+    --dim:#7e8794;
+    --dim2:#565d68;
+    --good:#27d17c;
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, "Liberation Mono", monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, sans-serif;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;margin:0;overflow:hidden;}
+  body{
+    font-family:var(--sans);
+    color:var(--text);
+    background:var(--bg);
+    display:flex;
+    user-select:none;
+  }
+
+  /* ---------------- Sidebar ---------------- */
+  #sidebar{
+    width:268px;
+    min-width:268px;
+    height:100%;
+    background:
+      linear-gradient(180deg,#15181d 0%, #101316 100%);
+    border-right:1px solid var(--line);
+    display:flex;
+    flex-direction:column;
+    z-index:5;
+    box-shadow: 4px 0 24px rgba(0,0,0,.4);
+  }
+  .brand{
+    padding:18px 20px 14px;
+    border-bottom:1px solid var(--line);
+    background:
+      repeating-linear-gradient(135deg, transparent 0 6px, rgba(255,255,255,.012) 6px 7px);
+  }
+  .brand h1{
+    margin:0;
+    font-size:22px;
+    font-weight:800;
+    letter-spacing:.28em;
+    color:var(--text);
+  }
+  .brand h1 .dot{color:var(--papaya);}
+  .brand p{
+    margin:4px 0 0;
+    font-size:9.5px;
+    letter-spacing:.34em;
+    text-transform:uppercase;
+    color:var(--dim2);
+    font-family:var(--mono);
+  }
+
+  .scroll{flex:1; overflow-y:auto; padding:16px 16px 22px;}
+  .scroll::-webkit-scrollbar{width:8px;}
+  .scroll::-webkit-scrollbar-thumb{background:var(--line2); border-radius:4px;}
+
+  .section-label{
+    font-size:10px; letter-spacing:.22em; text-transform:uppercase;
+    color:var(--dim); font-family:var(--mono); margin:6px 2px 10px;
+    display:flex; align-items:center; gap:8px;
+  }
+  .section-label::after{content:""; flex:1; height:1px; background:var(--line);}
+
+  /* piece palette */
+  .palette{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .piece{
+    position:relative;
+    background:linear-gradient(180deg,var(--panel2),var(--panel));
+    border:1px solid var(--line2);
+    border-radius:10px;
+    padding:10px 8px 8px;
+    cursor:grab;
+    transition:border-color .15s, transform .08s, background .15s;
+    touch-action:none;
+  }
+  .piece:hover{border-color:var(--papaya); background:linear-gradient(180deg,#20242b,#16191e);}
+  .piece:active{cursor:grabbing; transform:scale(.97);}
+  .piece svg{display:block; width:100%; height:48px;}
+  .piece .nm{
+    margin-top:6px; text-align:center; font-size:10px; letter-spacing:.08em;
+    color:var(--dim); font-family:var(--mono); text-transform:uppercase;
+  }
+  .piece.full{grid-column:1 / -1;}
+
+  /* turn direction toggle */
+  .seg{
+    display:flex; background:var(--panel); border:1px solid var(--line2);
+    border-radius:9px; overflow:hidden; margin-top:2px;
+  }
+  .seg button{
+    flex:1; background:transparent; border:0; color:var(--dim);
+    padding:9px 0; font-family:var(--mono); font-size:11px; letter-spacing:.12em;
+    cursor:pointer; transition:.15s; text-transform:uppercase;
+  }
+  .seg button.on{background:var(--papaya); color:#1a0d00; font-weight:700;}
+  .seg button:not(.on):hover{color:var(--text);}
+
+  .row{display:flex; gap:8px; margin-top:10px;}
+  .btn{
+    flex:1; background:var(--panel); border:1px solid var(--line2); color:var(--text);
+    padding:9px 0; border-radius:9px; font-family:var(--mono); font-size:11px;
+    letter-spacing:.08em; cursor:pointer; transition:.15s; text-transform:uppercase;
+    display:flex; align-items:center; justify-content:center; gap:6px;
+  }
+  .btn:hover{border-color:var(--papaya); color:#fff;}
+  .btn.danger:hover{border-color:var(--kerb); color:#fff;}
+  .btn svg{width:13px; height:13px;}
+  .btn.drive{
+    width:100%; background:linear-gradient(180deg,#e10600,#a40400); border-color:#ff3b33; color:#fff;
+    font-weight:700; letter-spacing:.14em; padding:12px 0; box-shadow:0 4px 14px rgba(225,6,0,.3);
+  }
+  .btn.drive svg{width:14px;height:14px;}
+  .btn.drive:hover{filter:brightness(1.12); border-color:#ff6b63; color:#fff;}
+  .btn.drive.on{background:linear-gradient(180deg,#2b2f36,#1a1e24); border-color:var(--line2); box-shadow:none;}
+
+  .hint{
+    margin-top:14px; font-size:10.5px; line-height:1.7; color:var(--dim2);
+    font-family:var(--mono); background:var(--bg2); border:1px solid var(--line);
+    border-radius:9px; padding:10px 12px;
+  }
+  .hint b{color:var(--papaya); font-weight:700;}
+
+  /* ---------------- Canvas + HUD ---------------- */
+  #stage{position:relative; flex:1; height:100%; overflow:hidden;}
+  canvas{display:block; width:100%; height:100%; cursor:crosshair;}
+
+  .hud{
+    position:absolute; top:16px; right:16px;
+    background:rgba(16,19,23,.86); backdrop-filter:blur(8px);
+    border:1px solid var(--line2); border-radius:12px; padding:14px 16px;
+    min-width:178px; font-family:var(--mono); z-index:3;
+    box-shadow:0 10px 30px rgba(0,0,0,.45);
+  }
+  .hud .stat{display:flex; justify-content:space-between; align-items:baseline; margin:3px 0;}
+  .hud .k{font-size:9.5px; letter-spacing:.18em; color:var(--dim); text-transform:uppercase;}
+  .hud .v{font-size:16px; font-weight:700; color:var(--text);}
+  .hud .v small{font-size:10px; color:var(--dim); font-weight:400;}
+  .hud .divider{height:1px; background:var(--line); margin:9px 0;}
+  .status{
+    text-align:center; font-size:11px; letter-spacing:.16em; padding:6px;
+    border-radius:7px; text-transform:uppercase; font-weight:700;
+  }
+  .status.open{color:var(--papaya); background:rgba(255,128,0,.10); border:1px solid rgba(255,128,0,.3);}
+  .status.closed{color:var(--good); background:rgba(39,209,124,.12); border:1px solid rgba(39,209,124,.35);}
+
+  /* selected piece controls */
+  .selbar{
+    position:absolute; bottom:18px; left:50%; transform:translateX(-50%) translateY(140%);
+    background:rgba(16,19,23,.92); backdrop-filter:blur(8px);
+    border:1px solid var(--line2); border-radius:13px; padding:10px 12px;
+    display:flex; align-items:center; gap:10px; z-index:3;
+    box-shadow:0 14px 36px rgba(0,0,0,.5); transition:transform .22s cubic-bezier(.2,.9,.3,1);
+  }
+  .selbar.show{transform:translateX(-50%) translateY(0);}
+  .selbar .sel-name{
+    font-family:var(--mono); font-size:11px; letter-spacing:.1em; color:var(--cyan);
+    text-transform:uppercase; min-width:96px;
+  }
+  .selbar .sel-name span{display:block; color:var(--dim); font-size:9px; letter-spacing:.18em; margin-top:2px;}
+  .stepper{display:flex; align-items:center; background:var(--panel); border:1px solid var(--line2); border-radius:9px; overflow:hidden;}
+  .stepper button{
+    width:34px; height:34px; background:transparent; border:0; color:var(--text);
+    font-size:18px; cursor:pointer; transition:.12s;
+  }
+  .stepper button:hover{background:var(--papaya); color:#1a0d00;}
+  .stepper .val{min-width:54px; text-align:center; font-family:var(--mono); font-size:13px; font-weight:700;}
+  .selbar .mini{
+    width:34px; height:34px; border-radius:9px; background:var(--panel); border:1px solid var(--line2);
+    color:var(--text); cursor:pointer; display:flex; align-items:center; justify-content:center; transition:.14s;
+  }
+  .selbar .mini:hover{border-color:var(--papaya);}
+  .selbar .mini.del:hover{border-color:var(--kerb); color:#fff; background:rgba(225,6,0,.15);}
+  .selbar .mini svg{width:15px;height:15px;}
+
+  /* floating drag ghost */
+  #ghost{
+    position:fixed; pointer-events:none; z-index:50; width:64px; height:64px;
+    transform:translate(-50%,-50%); display:none; opacity:.9;
+    filter:drop-shadow(0 6px 14px rgba(0,0,0,.5));
+  }
+  #ghost svg{width:100%; height:100%;}
+
+  .corner-zoom{position:absolute; bottom:18px; right:18px; display:flex; flex-direction:column; gap:7px; z-index:3;}
+  .corner-zoom button{
+    width:36px; height:36px; border-radius:9px; background:rgba(16,19,23,.86); border:1px solid var(--line2);
+    color:var(--text); font-size:18px; cursor:pointer; transition:.14s; backdrop-filter:blur(6px);
+  }
+  .corner-zoom button:hover{border-color:var(--papaya);}
+
+  @media (max-width:720px){
+    #sidebar{width:220px; min-width:220px;}
+    .hud{min-width:150px; padding:11px 12px;}
+  }
+</style>
+</head>
+<body>
+
+<aside id="sidebar">
+  <div class="brand">
+    <h1>APEX<span class="dot">.</span></h1>
+    <p>F1 Circuit Constructor</p>
+  </div>
+  <div class="scroll">
+    <div class="section-label">Track Pieces</div>
+    <div class="palette" id="palette">
+      <!-- pieces injected by JS -->
+    </div>
+
+    <div class="section-label" style="margin-top:22px;">Corner Direction</div>
+    <div class="seg" id="dirToggle">
+      <button data-dir="L">◀ Left</button>
+      <button data-dir="R" class="on">Right ▶</button>
+    </div>
+
+    <div class="section-label" style="margin-top:22px;">Build</div>
+    <div class="row">
+      <button class="btn" id="undoBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-1"/></svg>Undo</button>
+      <button class="btn danger" id="clearBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>Clear</button>
+    </div>
+    <div class="row">
+      <button class="btn" id="demoBtn">Load Demo</button>
+      <button class="btn" id="fitBtn">Fit View</button>
+    </div>
+    <div class="row">
+      <button class="btn" id="exportBtn">Save File</button>
+      <button class="btn" id="importBtn">Open File</button>
+    </div>
+    <div class="row">
+      <button class="btn" id="imgBtn">Export Image</button>
+    </div>
+    <input type="file" id="fileInput" accept=".json,application/json" style="display:none">
+
+    <div class="section-label" style="margin-top:22px;">Race</div>
+    <button class="btn drive" id="driveBtn">
+      <svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M8 5v14l11-7z"/></svg>Drive Lap</button>
+
+    <div class="hint">
+      <b>Click</b> a sidebar piece to add it, or <b>drag</b> it onto the canvas.<br>
+      On the track: <b>drag a piece to resize</b> it · <b>click a corner to flip</b> its direction.<br>
+      Bring the track back to the green start ring and it <b>snaps shut</b> into a lap.<br>
+      <b>Drag</b> empty space to pan · <b>scroll</b> to zoom.
+    </div>
+  </div>
+</aside>
+
+<main id="stage">
+  <canvas id="cv"></canvas>
+
+  <div class="hud">
+    <div class="stat"><span class="k">Pieces</span><span class="v" id="hudCount">0</span></div>
+    <div class="stat"><span class="k">Length</span><span class="v" id="hudLen">0 <small>m</small></span></div>
+    <div class="stat" id="speedRow" style="display:none"><span class="k">Speed</span><span class="v" id="hudSpeed">0 <small>km/h</small></span></div>
+    <div class="divider"></div>
+    <div class="status open" id="hudStatus">Open Lap</div>
+  </div>
+
+  <div class="corner-zoom">
+    <button id="zoomIn">+</button>
+    <button id="zoomOut">−</button>
+  </div>
+
+  <div class="selbar" id="selbar">
+    <div class="sel-name" id="selName">Straight<span id="selSub">Length</span></div>
+    <div class="stepper">
+      <button id="decBtn">−</button>
+      <div class="val" id="selVal">4</div>
+      <button id="incBtn">+</button>
+    </div>
+    <button class="mini" id="flipBtn" title="Flip direction">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg>
+    </button>
+    <button class="mini del" id="delBtn" title="Delete piece">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>
+    </button>
+  </div>
+</main>
+
+<div id="ghost"></div>
+
+<script>
+"use strict";
+(function(){
+  // ---------- constants ----------
+  const GRID = 44;            // world px per grid unit
+  const TRACK_W = 2;          // track width in grid units (FIXED — never changes)
+  const MIN_R = 2;            // minimum corner radius (grid units)
+  const MIN_LEN = 1;          // minimum straight length (grid units)
+  const DEF_LEN = 4;
+  const DEF_R = 2;
+  const METERS_PER_GRID = 18; // for the telemetry length readout
+
+  const TRACK_WORLD = TRACK_W * GRID;
+
+  // ---------- state ----------
+  const start = { x:0, y:0, h:0 };   // heading 0 = East ; canvas y is down
+  let pieces = [];                    // [{type:'straight',len} | {type:'corner',angle,dir,r}]
+  let selected = null;
+  let dir = 'R';                      // default corner direction for click-add
+
+  const cam = { x:0, y:0, s:1 };      // pan (css px) + scale
+  let dpr = window.devicePixelRatio || 1;
+
+  const cv = document.getElementById('cv');
+  const ctx = cv.getContext('2d');
+
+  // ---------- piece icons (sidebar svg) ----------
+  function iconStraight(){
+    return `<svg viewBox="0 0 80 48"><rect x="8" y="18" width="64" height="12" rx="2" fill="#3a4049" stroke="#eceff4" stroke-width="1.4"/><line x1="14" y1="24" x2="66" y2="24" stroke="#ffcf2b" stroke-width="1.4" stroke-dasharray="5 5"/></svg>`;
+  }
+  function iconCorner(angle){
+    // a quarter / half / three-quarter arc preview
+    const cx=46, cy=34, r=20, w=11;
+    const seg = (a0,a1)=>{
+      const p=(a,rr)=>[cx+Math.cos(a)*rr, cy+Math.sin(a)*rr];
+      let d="", n=24;
+      for(let i=0;i<=n;i++){const a=a0+(a1-a0)*i/n; const[x,y]=p(a,r+w/2); d+=(i?'L':'M')+x.toFixed(1)+' '+y.toFixed(1)+' ';}
+      for(let i=n;i>=0;i--){const a=a0+(a1-a0)*i/n; const[x,y]=p(a,r-w/2); d+='L'+(cx+Math.cos(a)*(r-w/2)).toFixed(1)+' '+(cy+Math.sin(a)*(r-w/2)).toFixed(1)+' ';}
+      return d+'Z';
+    };
+    const sweep = angle*Math.PI/180;
+    const a0 = -Math.PI; // start pointing left
+    const a1 = a0 + sweep;
+    const mid=(a0+a1)/2;
+    return `<svg viewBox="0 0 80 48"><path d="${seg(a0,a1)}" fill="#3a4049" stroke="#eceff4" stroke-width="1.4"/>`+
+           `<path d="M${cx+Math.cos(a0)*(r+8)} ${cy+Math.sin(a0)*(r+8)} A${r+8} ${r+8} 0 ${angle>180?1:0} 1 ${cx+Math.cos(a1)*(r+8)} ${cy+Math.sin(a1)*(r+8)}" fill="none" stroke="#e10600" stroke-width="2" stroke-dasharray="3 3" opacity=".75"/></svg>`;
+  }
+  const PIECES = [
+    {type:'straight', name:'Straight', icon:iconStraight(), full:false},
+    {type:'c90',  name:'90° Turn',  icon:iconCorner(90),  full:false},
+    {type:'c180', name:'180° Hairpin', icon:iconCorner(180), full:false},
+    {type:'c270', name:'270° Loop', icon:iconCorner(270), full:true},
+  ];
+  function pieceLabel(t){return t==='straight'?'Straight':t==='c90'?'90° Turn':t==='c180'?'180° Hairpin':'270° Loop';}
+  function angleOf(t){return t==='c90'?90:t==='c180'?180:270;}
+
+  // build palette
+  const paletteEl = document.getElementById('palette');
+  PIECES.forEach(p=>{
+    const el=document.createElement('div');
+    el.className='piece'+(p.full?' full':'');
+    el.dataset.type=p.type;
+    el.innerHTML = p.icon + `<div class="nm">${p.name}</div>`;
+    paletteEl.appendChild(el);
+  });
+
+  // ---------- geometry: walk the chain ----------
+  function build(){
+    let x=start.x, y=start.y, h=start.h;
+    const segs=[];
+    for(const p of pieces){
+      if(p.type==='straight'){
+        const x2=x+Math.cos(h)*p.len*GRID, y2=y+Math.sin(h)*p.len*GRID;
+        segs.push({...p, x1:x,y1:y,x2,y2,h0:h,h1:h});
+        x=x2; y=y2;
+      } else {
+        const sweep=angleOf(p.type? p.type : 'c90'); // safety
+        const sw = (p.angle||sweep)*Math.PI/180;
+        const sign = p.dir==='L' ? -1 : 1;            // R = +1 (curves toward +y when heading +x)
+        const cx = x + Math.cos(h + sign*Math.PI/2)*p.r*GRID;
+        const cy = y + Math.sin(h + sign*Math.PI/2)*p.r*GRID;
+        const a0 = Math.atan2(y-cy, x-cx);
+        const a1 = a0 + sign*sw;
+        const x2 = cx + Math.cos(a1)*p.r*GRID;
+        const y2 = cy + Math.sin(a1)*p.r*GRID;
+        segs.push({...p, x1:x,y1:y,x2,y2,cx,cy,a0,a1,sign,h0:h,h1:h+sign*sw});
+        x=x2; y=y2; h=h+sign*sw;
+      }
+    }
+    return { segs, end:{x,y,h} };
+  }
+
+  function isClosed(model){
+    if(pieces.length < 3) return false;
+    const dx=model.end.x-start.x, dy=model.end.y-start.y;
+    const dist=Math.hypot(dx,dy);
+    let dh=Math.abs(((model.end.h-start.h)%(Math.PI*2)));
+    dh=Math.min(dh, Math.PI*2-dh);
+    return dist < 3 && dh < 0.03;
+  }
+
+  // ---------- coordinate helpers ----------
+  function s2w(sx,sy){ return { x:(sx-cam.x)/cam.s, y:(sy-cam.y)/cam.s }; }
+  function w2s(wx,wy){ return { x:wx*cam.s+cam.x, y:wy*cam.s+cam.y }; }
+
+  // ---------- canvas sizing ----------
+  function resize(){
+    dpr = window.devicePixelRatio || 1;
+    const r = cv.getBoundingClientRect();
+    cv.width = Math.round(r.width*dpr);
+    cv.height = Math.round(r.height*dpr);
+    draw();
+  }
+  window.addEventListener('resize', resize);
+
+  // ---------- drawing ----------
+  function draw(){
+    const W=cv.width/dpr, H=cv.height/dpr;
+    ctx.setTransform(1,0,0,1,0,0);
+    // background
+    const g=ctx.createLinearGradient(0,0,W*dpr,H*dpr);
+    g.addColorStop(0,'#0d1014'); g.addColorStop(1,'#0a0c0f');
+    ctx.fillStyle=g; ctx.fillRect(0,0,W*dpr,H*dpr);
+
+    // world transform
+    ctx.setTransform(dpr*cam.s,0,0,dpr*cam.s, dpr*cam.x, dpr*cam.y);
+
+    drawGrid(W,H);
+    const model = build();
+    drawTrack(model);
+
+    const closed = isClosed(model);
+    drawStartFinish(model, closed);
+    if(!closed){
+      drawHead(model);
+      if(closeInfo()) drawCloseHint();   // green "ready to snap shut" ring
+    }
+    if(selected!=null && selected<model.segs.length) drawSelection(model.segs[selected]);
+    if(carOn && racing) drawRacingLine(racing);
+    if(carOn && racing && carPos) drawCar(carPos);
+
+    updateHUD(model, closed);
+  }
+
+  function drawCloseHint(){
+    const r=(TRACK_WORLD/2 + 9/cam.s)*(1+0.16*Math.sin(pulse*1.3));
+    ctx.strokeStyle='rgba(39,209,124,.95)'; ctx.lineWidth=2.5/cam.s;
+    ctx.beginPath(); ctx.arc(start.x,start.y, r, 0, Math.PI*2); ctx.stroke();
+    ctx.fillStyle='rgba(39,209,124,.16)';
+    ctx.beginPath(); ctx.arc(start.x,start.y, r, 0, Math.PI*2); ctx.fill();
+  }
+
+  function drawGrid(W,H){
+    const tl=s2w(0,0), br=s2w(W,H);
+    const x0=Math.floor(tl.x/GRID)*GRID, x1=Math.ceil(br.x/GRID)*GRID;
+    const y0=Math.floor(tl.y/GRID)*GRID, y1=Math.ceil(br.y/GRID)*GRID;
+    ctx.lineWidth=1/cam.s;
+    for(let x=x0;x<=x1;x+=GRID){
+      const major=Math.round(x/GRID)%5===0;
+      ctx.strokeStyle = major? 'rgba(120,135,155,.16)' : 'rgba(120,135,155,.065)';
+      ctx.beginPath(); ctx.moveTo(x,y0); ctx.lineTo(x,y1); ctx.stroke();
+    }
+    for(let y=y0;y<=y1;y+=GRID){
+      const major=Math.round(y/GRID)%5===0;
+      ctx.strokeStyle = major? 'rgba(120,135,155,.16)' : 'rgba(120,135,155,.065)';
+      ctx.beginPath(); ctx.moveTo(x0,y); ctx.lineTo(x1,y); ctx.stroke();
+    }
+  }
+
+  function tracePath(segs, p){
+    if(!segs.length) return;
+    p.moveTo(segs[0].x1, segs[0].y1);
+    for(const s of segs){
+      if(s.type==='straight') p.lineTo(s.x2,s.y2);
+      else p.arc(s.cx,s.cy, s.r*GRID, s.a0, s.a1, s.sign<0);
+    }
+  }
+
+  function drawTrack(model){
+    const segs=model.segs;
+    if(!segs.length) return;
+    const path=new Path2D();
+    tracePath(segs, path);
+
+    ctx.lineJoin='round'; ctx.lineCap='round';
+
+    // shadow / glow base
+    ctx.save();
+    ctx.shadowColor='rgba(0,0,0,.55)'; ctx.shadowBlur=18/cam.s; ctx.shadowOffsetY=6/cam.s;
+    ctx.strokeStyle='#000'; ctx.lineWidth=TRACK_WORLD + 4/cam.s;
+    ctx.stroke(path);
+    ctx.restore();
+
+    // white edge band
+    ctx.strokeStyle='var(--asphalt-edge)';
+    ctx.strokeStyle='#e9edf2';
+    ctx.lineWidth=TRACK_WORLD + 7/cam.s;
+    ctx.stroke(path);
+
+    // asphalt
+    ctx.strokeStyle='#2d3137';
+    ctx.lineWidth=TRACK_WORLD;
+    ctx.stroke(path);
+
+    // subtle asphalt sheen (lighter strip just off-center)
+    ctx.strokeStyle='rgba(255,255,255,.035)';
+    ctx.lineWidth=TRACK_WORLD*0.55;
+    ctx.stroke(path);
+
+    // centre dashes
+    ctx.setLineDash([13/1,16/1]);
+    ctx.lineDashOffset=0;
+    ctx.strokeStyle='rgba(245,210,70,.85)';
+    ctx.lineWidth=2.4/cam.s;
+    ctx.stroke(path);
+    ctx.setLineDash([]);
+
+    // kerbs on corners
+    for(const s of segs){ if(s.type!=='straight') drawKerb(s); }
+  }
+
+  function drawKerb(s){
+    const rIn = s.r*GRID - TRACK_WORLD/2;
+    const rOut = s.r*GRID + TRACK_WORLD/2;
+    const drawArc=(rr, off)=>{
+      // red base
+      ctx.beginPath();
+      ctx.lineWidth=5/cam.s; ctx.setLineDash([]);
+      ctx.strokeStyle=off?'#c40500':'#e10600';
+      ctx.arc(s.cx,s.cy, rr, s.a0, s.a1, s.sign<0); ctx.stroke();
+      // white dashes over it
+      const span=Math.abs(s.a1-s.a0)*rr;
+      const dash=12;
+      ctx.beginPath();
+      ctx.setLineDash([dash/cam.s*cam.s, dash/cam.s*cam.s]); // visual constant-ish
+      ctx.setLineDash([10/cam.s,10/cam.s]);
+      ctx.lineDashOffset = off?10/cam.s:0;
+      ctx.strokeStyle='#f4f6f9';
+      ctx.lineWidth=5/cam.s;
+      ctx.arc(s.cx,s.cy, rr, s.a0, s.a1, s.sign<0); ctx.stroke();
+      ctx.setLineDash([]);
+    };
+    drawArc(rIn,false);
+    drawArc(rOut,true);
+  }
+
+  function drawStartFinish(model, closed){
+    // checkered line at the start node, perpendicular to start heading
+    const hx=Math.cos(start.h), hy=Math.sin(start.h);
+    const px=-hy, py=hx; // perpendicular
+    const half=TRACK_WORLD/2;
+    const depth=GRID*0.5;
+    const cols=2, rows=6;
+    ctx.save();
+    for(let i=0;i<rows;i++){
+      for(let j=0;j<cols;j++){
+        const t=(i/rows - .0); const u=(j/cols);
+        const black=(i+j)%2===0;
+        const ax = start.x + px*(-half + TRACK_WORLD*(i/rows)) + hx*(depth*(u-0.5));
+        const ay = start.y + py*(-half + TRACK_WORLD*(i/rows)) + hy*(depth*(u-0.5));
+        ctx.fillStyle = black? '#0e0e0e':'#f3f4f6';
+        ctx.beginPath();
+        const w=TRACK_WORLD/rows, d=depth/cols;
+        // build a quad
+        const cxp = start.x + px*(-half + w*i) + hx*(d*j - depth/2);
+        const cyp = start.y + py*(-half + w*i) + hy*(d*j - depth/2);
+        ctx.moveTo(cxp, cyp);
+        ctx.lineTo(cxp+px*w, cyp+py*w);
+        ctx.lineTo(cxp+px*w+hx*d, cyp+py*w+hy*d);
+        ctx.lineTo(cxp+hx*d, cyp+hy*d);
+        ctx.closePath(); ctx.fill();
+      }
+    }
+    ctx.restore();
+
+    // start dot marker
+    ctx.fillStyle = closed? 'var(--good)' : '#ff8000';
+    ctx.fillStyle = closed? '#27d17c' : '#ff8000';
+    ctx.beginPath();
+    ctx.arc(start.x - hx*depth*0.9, start.y - hy*depth*0.9, 4.5/cam.s, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  let pulse=0;
+  function drawHead(model){
+    const e = pieces.length? model.end : start;
+    const hx=Math.cos(e.h), hy=Math.sin(e.h);
+    const px=-hy, py=hx;
+    // pulsing ring
+    const rad = (TRACK_WORLD/2 + 6/cam.s) * (1 + 0.12*Math.sin(pulse));
+    ctx.strokeStyle='rgba(255,128,0,.9)';
+    ctx.lineWidth=2.5/cam.s;
+    ctx.beginPath(); ctx.arc(e.x,e.y, rad, 0, Math.PI*2); ctx.stroke();
+    ctx.fillStyle='rgba(255,128,0,.14)';
+    ctx.beginPath(); ctx.arc(e.x,e.y, rad, 0, Math.PI*2); ctx.fill();
+    // direction chevron
+    const L=TRACK_WORLD*0.34;
+    ctx.fillStyle='#ff8000';
+    ctx.beginPath();
+    ctx.moveTo(e.x+hx*L, e.y+hy*L);
+    ctx.lineTo(e.x+px*L*0.7 - hx*L*0.2, e.y+py*L*0.7 - hy*L*0.2);
+    ctx.lineTo(e.x-px*L*0.7 - hx*L*0.2, e.y-py*L*0.7 - hy*L*0.2);
+    ctx.closePath(); ctx.fill();
+  }
+
+  function handlePos(s){
+    if(s.type==='straight') return {x:s.x2, y:s.y2};
+    const mid=(s.a0+s.a1)/2;
+    return { x:s.cx+Math.cos(mid)*s.r*GRID, y:s.cy+Math.sin(mid)*s.r*GRID };
+  }
+
+  function drawSelection(s){
+    const path=new Path2D();
+    if(s.type==='straight'){ path.moveTo(s.x1,s.y1); path.lineTo(s.x2,s.y2); }
+    else { path.arc(s.cx,s.cy, s.r*GRID, s.a0, s.a1, s.sign<0); }
+    ctx.lineJoin='round'; ctx.lineCap='round';
+    ctx.strokeStyle='rgba(25,227,203,.35)';
+    ctx.lineWidth=TRACK_WORLD + 12/cam.s;
+    ctx.stroke(path);
+    ctx.strokeStyle='#19e3cb';
+    ctx.lineWidth=2/cam.s;
+    ctx.setLineDash([8/cam.s,7/cam.s]);
+    ctx.stroke(path);
+    ctx.setLineDash([]);
+    // resize handle
+    const hp=handlePos(s);
+    ctx.fillStyle='#0c0e11'; ctx.strokeStyle='#19e3cb'; ctx.lineWidth=2.5/cam.s;
+    ctx.beginPath(); ctx.arc(hp.x,hp.y, 8/cam.s, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle='#19e3cb';
+    ctx.beginPath(); ctx.arc(hp.x,hp.y, 3/cam.s, 0, Math.PI*2); ctx.fill();
+  }
+
+  // ---------- HUD ----------
+  function updateHUD(model, closed){
+    let total=0;
+    for(const s of (model?model.segs:[])){
+      if(s.type==='straight') total += s.len*GRID;
+      else total += s.r*GRID*Math.abs(s.a1-s.a0);
+    }
+    const meters = total/GRID*METERS_PER_GRID;
+    document.getElementById('hudCount').textContent = pieces.length;
+    const lenEl=document.getElementById('hudLen');
+    if(meters>=1000) lenEl.innerHTML = (meters/1000).toFixed(2)+' <small>km</small>';
+    else lenEl.innerHTML = Math.round(meters)+' <small>m</small>';
+    const st=document.getElementById('hudStatus');
+    if(closed){ st.className='status closed'; st.textContent='🏁 Circuit Complete'; }
+    else { st.className='status open'; st.textContent='Open Lap'; }
+  }
+
+  // ---------- selection bar ----------
+  function refreshSelbar(){
+    const bar=document.getElementById('selbar');
+    if(selected==null || selected>=pieces.length){ bar.classList.remove('show'); return; }
+    const p=pieces[selected];
+    bar.classList.add('show');
+    const label = p.type==='straight' ? 'Straight'
+      : (p.angle===90 ? '90° Turn' : p.angle===180 ? '180° Hairpin' : '270° Loop');
+    document.getElementById('selName').childNodes[0].nodeValue = label;
+    document.getElementById('selSub').textContent = p.type==='straight'?'Length (units)':'Radius (units)';
+    document.getElementById('selVal').textContent = p.type==='straight'? p.len : p.r;
+    document.getElementById('flipBtn').style.display = p.type==='straight'?'none':'flex';
+  }
+
+  function stepSel(d){
+    if(selected==null) return;
+    const p=pieces[selected];
+    if(p.type==='straight') p.len=Math.max(MIN_LEN, p.len+d);
+    else p.r=Math.max(MIN_R, p.r+d);
+    racingDirty=true; refreshSelbar(); draw();
+  }
+
+  // ---------- actions ----------
+  function addPiece(type, forceDir){
+    let p;
+    if(type==='straight') p={type:'straight', len:DEF_LEN};
+    else p={type:'corner', angle:angleOf(type), dir:forceDir||dir, r:DEF_R};
+    pieces.push(p);
+    selected=pieces.length-1;
+    racingDirty=true; refreshSelbar(); draw();
+  }
+
+  function undo(){ pieces.pop(); if(selected>=pieces.length) selected=pieces.length?pieces.length-1:null; racingDirty=true; refreshSelbar(); draw(); }
+  function clearAll(){ pieces=[]; selected=null; racingDirty=true; refreshSelbar(); draw(); }
+  function deleteSel(){ if(selected==null) return; pieces.splice(selected,1); selected = pieces.length? Math.min(selected, pieces.length-1):null; racingDirty=true; refreshSelbar(); draw(); }
+  function flipSel(){ if(selected==null) return; const p=pieces[selected]; if(p.type==='corner'){ p.dir = p.dir==='L'?'R':'L'; racingDirty=true; draw(); } }
+
+  // ---------- loop closure detection (for magnetic snap on the final straight) ----------
+  function closeInfo(){
+    if(pieces.length<3) return null;
+    const last=pieces[pieces.length-1];
+    if(last.type!=='straight') return null;
+    const model=build(); const s=model.segs[model.segs.length-1];
+    let dh=Math.abs(((s.h0-start.h)%(Math.PI*2)+Math.PI*2)%(Math.PI*2));
+    dh=Math.min(dh, Math.PI*2-dh);
+    if(dh>0.02) return null;                       // heading must flow back into piece #1
+    const hx=Math.cos(s.h0), hy=Math.sin(s.h0);
+    const vx=start.x-s.x1, vy=start.y-s.y1;
+    const along=(vx*hx+vy*hy)/GRID;                // distance forward to the start point
+    const lat=Math.abs(vx*(-hy)+vy*hx)/GRID;       // sideways offset (must be ~0)
+    if(lat>0.06) return null;
+    if(along < MIN_LEN-0.001) return null;
+    return { len: Math.round(along) };
+  }
+
+  // fit view to track bounds
+  function fitView(){
+    const model=build();
+    if(!model.segs.length){ cam.x=cv.clientWidth*0.4; cam.y=cv.clientHeight*0.5; cam.s=1; draw(); return; }
+    let minx=Infinity,miny=Infinity,maxx=-Infinity,maxy=-Infinity;
+    const acc=(x,y)=>{minx=Math.min(minx,x);miny=Math.min(miny,y);maxx=Math.max(maxx,x);maxy=Math.max(maxy,y);};
+    acc(start.x,start.y);
+    for(const s of model.segs){
+      acc(s.x1,s.y1); acc(s.x2,s.y2);
+      if(s.type==='corner'){ // sample arc
+        for(let i=0;i<=8;i++){const a=s.a0+(s.a1-s.a0)*i/8; acc(s.cx+Math.cos(a)*s.r*GRID, s.cy+Math.sin(a)*s.r*GRID);}
+      }
+    }
+    const pad=TRACK_WORLD+GRID;
+    minx-=pad;miny-=pad;maxx+=pad;maxy+=pad;
+    const w=maxx-minx, h=maxy-miny;
+    const W=cv.clientWidth, H=cv.clientHeight;
+    cam.s = Math.min(W/w, H/h, 2.2);
+    cam.x = W/2 - (minx+maxx)/2*cam.s;
+    cam.y = H/2 - (miny+maxy)/2*cam.s;
+    draw();
+  }
+
+  // ---------- demo track (closed circuit) ----------
+  function loadDemo(){
+    // A verified closing circuit: sweeping corners of varied radius (forms a complete lap).
+    pieces=[
+      {type:'straight',len:3},
+      {type:'corner',angle:90,dir:'R',r:4},
+      {type:'straight',len:2},
+      {type:'corner',angle:90,dir:'R',r:2},
+      {type:'straight',len:4},
+      {type:'corner',angle:90,dir:'R',r:3},
+      {type:'straight',len:3},
+      {type:'corner',angle:90,dir:'R',r:2},
+    ];
+    selected=null; racingDirty=true; refreshSelbar(); fitView();
+  }
+
+  // ---------- hit testing ----------
+  function distToSeg(px,py, x1,y1,x2,y2){
+    const dx=x2-x1, dy=y2-y1; const L2=dx*dx+dy*dy;
+    let t = L2? ((px-x1)*dx+(py-y1)*dy)/L2 : 0; t=Math.max(0,Math.min(1,t));
+    const cx=x1+dx*t, cy=y1+dy*t; return Math.hypot(px-cx,py-cy);
+  }
+  function pieceAt(wx,wy){
+    const model=build();
+    for(let i=model.segs.length-1;i>=0;i--){
+      const s=model.segs[i];
+      if(s.type==='straight'){
+        if(distToSeg(wx,wy,s.x1,s.y1,s.x2,s.y2) <= TRACK_WORLD/2+6/cam.s) return i;
+      } else {
+        const d=Math.hypot(wx-s.cx,wy-s.cy);
+        if(Math.abs(d - s.r*GRID) <= TRACK_WORLD/2+6/cam.s){
+          let a=Math.atan2(wy-s.cy,wx-s.cx);
+          // normalize angle into the swept range
+          const lo=Math.min(s.a0,s.a1), hi=Math.max(s.a0,s.a1);
+          let aa=a; while(aa<lo) aa+=Math.PI*2; while(aa>hi) aa-=Math.PI*2;
+          if(aa>=lo-0.02 && aa<=hi+0.02) return i;
+        }
+      }
+    }
+    return null;
+  }
+  function overHandle(wx,wy){
+    if(selected==null) return false;
+    const model=build(); if(selected>=model.segs.length) return false;
+    const hp=handlePos(model.segs[selected]);
+    return Math.hypot(wx-hp.x,wy-hp.y) <= 11/cam.s;
+  }
+
+  // ---------- pointer interaction ----------
+  // DRAG a piece = change its size (snaps to grid) · CLICK a piece = rotate it · DRAG empty = pan
+  let mode=null, last={x:0,y:0}, pressIdx=null;
+  cv.addEventListener('pointerdown', e=>{
+    cv.setPointerCapture(e.pointerId);
+    const w=s2w(e.offsetX,e.offsetY);
+    last={x:e.offsetX,y:e.offsetY};
+    const idx=pieceAt(w.x,w.y);
+    if(idx!=null){ pressIdx=idx; mode=null; selected=idx; refreshSelbar(); draw(); return; }
+    selected=null; refreshSelbar(); mode='pan'; draw();
+  });
+  cv.addEventListener('pointermove', e=>{
+    const w=s2w(e.offsetX,e.offsetY);
+    if(pressIdx!=null){
+      if(mode!=='resize' && Math.hypot(e.offsetX-last.x, e.offsetY-last.y) > 4) mode='resize';
+      if(mode==='resize') resizePiece(pressIdx, w);
+      return;
+    }
+    if(mode==='pan'){
+      cam.x += e.offsetX-last.x; cam.y += e.offsetY-last.y;
+      last={x:e.offsetX,y:e.offsetY}; draw(); return;
+    }
+    cv.style.cursor = (pieceAt(w.x,w.y)!=null) ? 'grab' : 'crosshair';
+  });
+  function endPress(){
+    if(pressIdx!=null && mode!=='resize') rotatePiece(pressIdx);  // a clean click = rotate
+    pressIdx=null; mode=null;
+  }
+  cv.addEventListener('pointerup', endPress);
+  cv.addEventListener('pointercancel', ()=>{ pressIdx=null; mode=null; });
+
+  function resizePiece(idx, w){
+    const p=pieces[idx];
+    const model=build(); const s=model.segs[idx];
+    if(p.type==='straight'){
+      const hx=Math.cos(s.h0), hy=Math.sin(s.h0);
+      let len=Math.max(MIN_LEN, Math.round(((w.x-s.x1)*hx+(w.y-s.y1)*hy)/GRID));
+      // magnetic closure: if dragging the final straight lands it on the start, snap it shut
+      const ci=closeInfo();
+      if(ci && Math.abs(len - ci.len) <= 2) len = ci.len;
+      p.len=len;
+    } else {
+      p.r=Math.max(MIN_R, Math.round(Math.hypot(w.x-s.cx, w.y-s.cy)/GRID));
+    }
+    racingDirty=true; refreshSelbar(); draw();
+  }
+  function rotatePiece(idx){
+    const p=pieces[idx];
+    if(p.type==='corner'){ p.dir = p.dir==='L'?'R':'L'; racingDirty=true; draw(); }
+  }
+
+  // zoom
+  cv.addEventListener('wheel', e=>{
+    e.preventDefault();
+    const f = e.deltaY<0 ? 1.12 : 1/1.12;
+    const ns = Math.max(0.25, Math.min(3, cam.s*f));
+    const wx=(e.offsetX-cam.x)/cam.s, wy=(e.offsetY-cam.y)/cam.s;
+    cam.s=ns; cam.x=e.offsetX-wx*ns; cam.y=e.offsetY-wy*ns;
+    draw();
+  }, {passive:false});
+
+  document.getElementById('zoomIn').onclick=()=>{ zoomBy(1.2); };
+  document.getElementById('zoomOut').onclick=()=>{ zoomBy(1/1.2); };
+  function zoomBy(f){
+    const W=cv.clientWidth/2,H=cv.clientHeight/2;
+    const ns=Math.max(0.25,Math.min(3,cam.s*f));
+    const wx=(W-cam.x)/cam.s, wy=(H-cam.y)/cam.s;
+    cam.s=ns; cam.x=W-wx*ns; cam.y=H-wy*ns; draw();
+  }
+
+  // ---------- palette: click to add + drag to add ----------
+  const ghost=document.getElementById('ghost');
+  let dragType=null, dragMoved=false, dragStart={x:0,y:0};
+
+  paletteEl.querySelectorAll('.piece').forEach(el=>{
+    el.addEventListener('pointerdown', e=>{
+      dragType=el.dataset.type; dragMoved=false; dragStart={x:e.clientX,y:e.clientY};
+      el.setPointerCapture(e.pointerId);
+      const ic = PIECES.find(p=>p.type===dragType).icon;
+      ghost.innerHTML=ic;
+    });
+    el.addEventListener('pointermove', e=>{
+      if(!dragType) return;
+      if(!dragMoved && Math.hypot(e.clientX-dragStart.x, e.clientY-dragStart.y)>6){ dragMoved=true; ghost.style.display='block'; }
+      if(dragMoved){ ghost.style.left=e.clientX+'px'; ghost.style.top=e.clientY+'px'; }
+    });
+    el.addEventListener('pointerup', e=>{
+      if(!dragType){ return; }
+      const type=dragType; dragType=null; ghost.style.display='none';
+      if(!dragMoved){ addPiece(type); return; }       // simple click
+      // dropped — is it over the canvas?
+      const r=cv.getBoundingClientRect();
+      if(e.clientX>=r.left && e.clientX<=r.right && e.clientY>=r.top && e.clientY<=r.bottom){
+        let useDir=dir;
+        if(type!=='straight'){
+          const w=s2w(e.clientX-r.left, e.clientY-r.top);
+          const model=build();
+          const head = pieces.length? model.end : start;
+          const vx=w.x-head.x, vy=w.y-head.y;
+          const cross = Math.cos(head.h)*vy - Math.sin(head.h)*vx; // >0 => right side
+          useDir = cross>0 ? 'R':'L';
+        }
+        addPiece(type, useDir);
+      }
+    });
+    el.addEventListener('pointercancel', ()=>{ dragType=null; ghost.style.display='none'; });
+  });
+
+  // ---------- direction toggle ----------
+  const dirToggle=document.getElementById('dirToggle');
+  dirToggle.querySelectorAll('button').forEach(b=>{
+    b.onclick=()=>{
+      dir=b.dataset.dir;
+      dirToggle.querySelectorAll('button').forEach(x=>x.classList.toggle('on', x===b));
+    };
+  });
+
+  // ---------- buttons ----------
+  document.getElementById('undoBtn').onclick=undo;
+  document.getElementById('clearBtn').onclick=clearAll;
+  document.getElementById('demoBtn').onclick=loadDemo;
+  document.getElementById('fitBtn').onclick=fitView;
+  document.getElementById('decBtn').onclick=()=>stepSel(-1);
+  document.getElementById('incBtn').onclick=()=>stepSel(1);
+  document.getElementById('flipBtn').onclick=flipSel;
+  document.getElementById('delBtn').onclick=deleteSel;
+
+  const driveBtn=document.getElementById('driveBtn');
+  driveBtn.onclick=()=>{
+    if(pieces.length<2) return;
+    carOn=!carOn;
+    if(carOn){
+      carDist=0; carTrail=[]; racingDirty=true;
+      driveBtn.classList.add('on');
+      driveBtn.innerHTML='<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>Pause';
+      document.getElementById('speedRow').style.display='flex';
+    } else {
+      driveBtn.classList.remove('on');
+      driveBtn.innerHTML='<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M8 5v14l11-7z"/></svg>Drive Lap';
+      document.getElementById('speedRow').style.display='none';
+      draw();
+    }
+  };
+
+  // export / import
+  document.getElementById('exportBtn').onclick=()=>{
+    const data=JSON.stringify({start, pieces, v:1}, null, 2);
+    const blob=new Blob([data],{type:'application/json'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob); a.download='apex-circuit.json'; a.click();
+    URL.revokeObjectURL(a.href);
+  };
+  document.getElementById('importBtn').onclick=()=>document.getElementById('fileInput').click();
+  document.getElementById('fileInput').onchange=e=>{
+    const f=e.target.files[0]; if(!f) return;
+    const rd=new FileReader();
+    rd.onload=()=>{ try{ const d=JSON.parse(rd.result); if(d.pieces){ pieces=d.pieces; selected=null; racingDirty=true; refreshSelbar(); fitView(); } }catch(err){ alert('Could not read that file.'); } };
+    rd.readAsText(f);
+    e.target.value='';
+  };
+  document.getElementById('imgBtn').onclick=()=>{
+    const a=document.createElement('a');
+    a.href=cv.toDataURL('image/png'); a.download='apex-circuit.png'; a.click();
+  };
+
+  // keyboard
+  window.addEventListener('keydown', e=>{
+    if(e.target.tagName==='INPUT') return;
+    if(e.key==='Backspace'){ e.preventDefault(); if(selected!=null) deleteSel(); else undo(); }
+    else if(e.key==='Delete'){ if(selected!=null) deleteSel(); }
+    else if(e.key==='Escape'){ selected=null; refreshSelbar(); draw(); }
+    else if(e.key==='='||e.key==='+'){ stepSel(1); }
+    else if(e.key==='-'||e.key==='_'){ stepSel(-1); }
+    else if(e.key==='f'||e.key==='F'){ fitView(); }
+  });
+
+  // ---------- the car: racing line + drive ----------
+  let carOn=false, carDist=0, racing=null, racingDirty=true, carPos=null, carTrail=[];
+  const V_MAX = GRID*9.2;     // top speed (world px/sec) on straights
+  const FLAT_R = GRID*6;      // corner radius (world) you can take flat-out
+
+  function buildRacingLine(){
+    const model=build();
+    if(model.segs.length<2) return null;
+    const STEP=GRID*0.17;
+    const pts=[];
+    let cid=0;
+    for(const s of model.segs){
+      if(s.type==='straight'){
+        const len=Math.hypot(s.x2-s.x1,s.y2-s.y1);
+        const n=Math.max(1,Math.round(len/STEP));
+        for(let k=0;k<n;k++){ const t=k/n; pts.push({x:s.x1+(s.x2-s.x1)*t, y:s.y1+(s.y2-s.y1)*t, corner:false, r:0}); }
+      } else {
+        const arc=Math.abs(s.a1-s.a0)*s.r*GRID;
+        const n=Math.max(5,Math.round(arc/STEP));
+        cid++;
+        for(let k=0;k<n;k++){ const f=n>1?k/(n-1):0; const a=s.a0+(s.a1-s.a0)*(k/n);
+          pts.push({x:s.cx+Math.cos(a)*s.r*GRID, y:s.cy+Math.sin(a)*s.r*GRID, corner:true, cx:s.cx, cy:s.cy, r:s.r*GRID, cid, f}); }
+      }
+    }
+    const closed=isClosed(model);
+    if(!closed){ const e=model.end; pts.push({x:e.x,y:e.y,corner:false,r:0}); }
+    // per-corner metadata: is the straight before/after a short link to an OPPOSITE-direction
+    // corner? (i.e. a chicane). Those sides skip the outside swing and flow apex-to-apex.
+    const cMeta={}; let cc=0; const segN=model.segs.length;
+    for(let si=0; si<segN; si++){
+      if(model.segs[si].type!=='straight'){ cc++;
+        const s=model.segs[si];
+        const prevS=model.segs[si-1] || (closed? model.segs[segN-1] : null);
+        const nextS=model.segs[si+1] || (closed? model.segs[0] : null);
+        const prevC=model.segs[si-2] || (closed? model.segs[((si-2)%segN+segN)%segN] : null);
+        const nextC=model.segs[si+2] || (closed? model.segs[(si+2)%segN] : null);
+        cMeta[cc]={
+          prevLen: prevS&&prevS.type==='straight'?prevS.len:0,
+          nextLen: nextS&&nextS.type==='straight'?nextS.len:0,
+          prevOpp: !!(prevC&&prevC.type==='corner'&&prevC.dir!==s.dir),
+          nextOpp: !!(nextC&&nextC.type==='corner'&&nextC.dir!==s.dir)
+        };
+      }
+    }
+    const N=pts.length;
+    for(let i=0;i<N;i++){
+      const a=pts[(i-1+N)%N], b=pts[(i+1)%N];
+      let tx=b.x-a.x, ty=b.y-a.y; const L=Math.hypot(tx,ty)||1;
+      pts[i].tx=tx/L; pts[i].ty=ty/L; pts[i].nx=-pts[i].ty; pts[i].ny=pts[i].tx;
+    }
+    // ---- racing line: flowing + smoothest ----
+    // Approach: optimise the WHOLE circuit at once (not one corner at a time) by minimising the
+    // line's total curvature — the smoothest, shortest racing line — using three pulls:
+    //   • minimum-curvature: every point is drawn toward the smoothest local shape (a 5-point
+    //     stencil), so the line flows and never spikes;
+    //   • apex pull: each corner's apex is attracted to the INSIDE kerb (so it uses the track);
+    //   • flank pull: each corner's entry & exit are attracted to the OUTSIDE kerb (so it flows
+    //     out-in-out like a real line) — but this is switched OFF where a corner links to an
+    //     opposite-direction corner over a short straight, so chicanes run dead-straight through
+    //     the apexes with no zig-zag.
+    // It's solved as one convex optimisation (exact coordinate descent, over-relaxed) so the line
+    // is globally consistent — it plans the whole lap, then settles into the smoothest solution.
+    const carHalf = TRACK_WORLD*0.19/2;
+    const maxOff = TRACK_WORLD/2 - carHalf - 1;     // kerb to kerb
+    const groups={};
+    for(let i=0;i<N;i++) if(pts[i].corner){ (groups[pts[i].cid]=groups[pts[i].cid]||[]).push(i); }
+    // inside sign per corner point (which way is the apex)
+    for(let i=0;i<N;i++){
+      if(pts[i].corner){ const ix=pts[i].cx-pts[i].x, iy=pts[i].cy-pts[i].y, il=Math.hypot(ix,iy)||1;
+        pts[i].inSign=Math.sign((ix/il)*pts[i].nx+(iy/il)*pts[i].ny); } else pts[i].inSign=0;
+    }
+    // attractor target + weight per point (0 weight = pure curvature there)
+    const tgt=new Array(N).fill(0), W=new Array(N).fill(0);
+    const W_APEX=9, W_OUT=9, CH=2;   // CH: straight <= 2 units to opposite corner = chicane link
+    for(const k in groups){
+      const idxs=groups[k];
+      const sgn=pts[idxs[Math.floor(idxs.length/2)]].inSign;
+      const m=cMeta[k]||{};
+      const ia=idxs[Math.floor(idxs.length/2)];
+      tgt[ia]=sgn*maxOff; W[ia]=W_APEX;                          // apex -> inside kerb
+      const chIn  = m.prevOpp && m.prevLen<=CH;
+      const chOut = m.nextOpp && m.nextLen<=CH;
+      if(!chIn){  const ie=idxs[0];             tgt[ie]=-sgn*maxOff; W[ie]=W_OUT; }   // entry -> outside
+      if(!chOut){ const ix=idxs[idxs.length-1]; tgt[ix]=-sgn*maxOff; W[ix]=W_OUT; }   // exit  -> outside
+    }
+    const off=new Array(N).fill(0);
+    const Px=i=>pts[i].x+pts[i].nx*off[i], Py=i=>pts[i].y+pts[i].ny*off[i];
+    const omega=1.7, iters=closed?700:500;
+    const wrap=k=>((k%N)+N)%N;
+    for(let it=0; it<iters; it++){
+      for(let i=0;i<N;i++){
+        if(!closed && (i<2||i>N-3)) continue;
+        const i1=wrap(i-1), i2=wrap(i-2), j1=wrap(i+1), j2=wrap(i+2);
+        // smoothest local offset = project the curvature-minimising target onto this normal
+        const tx=(4*Px(i1)+4*Px(j1)-Px(i2)-Px(j2))/6;
+        const ty=(4*Py(i1)+4*Py(j1)-Py(i2)-Py(j2))/6;
+        const curvOpt=(tx-pts[i].x)*pts[i].nx+(ty-pts[i].y)*pts[i].ny;
+        const w=W[i];
+        let opt=(6*curvOpt + w*tgt[i])/(6+w);       // blend smoothness with the kerb attractor
+        if(opt>maxOff) opt=maxOff; if(opt<-maxOff) opt=-maxOff;
+        off[i]=off[i]+omega*(opt-off[i]);           // over-relaxed coordinate descent
+        if(off[i]>maxOff) off[i]=maxOff; if(off[i]<-maxOff) off[i]=-maxOff;
+      }
+    }
+    const offS=off;
+    const R=[];
+    for(let i=0;i<N;i++) R.push({x:pts[i].x+pts[i].nx*offS[i], y:pts[i].y+pts[i].ny*offS[i]});
+    const cum=[0];
+    for(let i=1;i<N;i++) cum.push(cum[i-1]+Math.hypot(R[i].x-R[i-1].x,R[i].y-R[i-1].y));
+    const closeLen=closed?Math.hypot(R[0].x-R[N-1].x,R[0].y-R[N-1].y):0;
+    const total=cum[N-1]+closeLen;
+    const ds=new Array(N);
+    for(let i=0;i<N;i++){ ds[i]=(i<N-1)?(cum[i+1]-cum[i]):closeLen; if(ds[i]<=0) ds[i]=STEP; }
+    // ---- the clever bit: measure the actual curve radius of the LINE it chose, so the car
+    //      runs the fastest speed that line allows without sliding off ----
+    const span=Math.max(2, Math.round((GRID*0.6)/STEP));
+    const lineR=new Array(N);
+    for(let i=0;i<N;i++){
+      let ai=i-span, ci=i+span;
+      if(!closed){ ai=Math.max(0,ai); ci=Math.min(N-1,ci); }
+      const a=R[((ai%N)+N)%N], b=R[i], c=R[((ci%N)+N)%N];
+      lineR[i]=Math.min(mengerRadius(a,b,c), 60*GRID);
+    }
+    const lineRs=smooth(lineR, Math.max(1,Math.round(N*0.03)), closed);
+    const v=speedProfile(lineRs, ds, closed, N);
+    return {R,cum,total,closed,v,N};
+  }
+
+  // radius of the circle through 3 points (Menger curvature); huge = nearly straight
+  function mengerRadius(a,b,c){
+    const ab=Math.hypot(b.x-a.x,b.y-a.y), bc=Math.hypot(c.x-b.x,c.y-b.y), ca=Math.hypot(a.x-c.x,a.y-c.y);
+    const area=Math.abs((b.x-a.x)*(c.y-a.y)-(b.y-a.y)*(c.x-a.x))*0.5;
+    if(area<1e-6) return 1e9;
+    return (ab*bc*ca)/(4*area);
+  }
+
+  function fillTargets(target, wrap){
+    const N=target.length, orig=target.slice(), isSet=orig.map(x=>x!=null);
+    if(!isSet.some(Boolean)){ for(let i=0;i<N;i++) target[i]=0; return; }
+    for(let i=0;i<N;i++){
+      if(isSet[i]) continue;
+      let prev=null,next=null,dP=0,dN=0;
+      for(let k=1;k<=N;k++){ const j=((i-k)%N+N)%N; if(isSet[j]){prev=j;dP=k;break;} if(!wrap && i-k<0) break; }
+      for(let k=1;k<=N;k++){ const j=(i+k)%N; if(isSet[j]){next=j;dN=k;break;} if(!wrap && i+k>=N) break; }
+      if(prev==null&&next==null) target[i]=0;
+      else if(prev==null) target[i]=orig[next];
+      else if(next==null) target[i]=orig[prev];
+      else { const t=dP/(dP+dN); target[i]=orig[prev]*(1-t)+orig[next]*t; }
+    }
+  }
+  function smooth(arr,w,wrap){
+    const N=arr.length, out=new Array(N).fill(0);
+    for(let i=0;i<N;i++){ let s=0,c=0;
+      for(let k=-w;k<=w;k++){ let j=i+k; if(wrap) j=((j%N)+N)%N; else { if(j<0||j>=N) continue; } s+=arr[j]; c++; }
+      out[i]=s/c;
+    }
+    return out;
+  }
+  // grip-limited speed with a friction circle: braking and cornering share grip, so the car can
+  // TRAIL-BRAKE — keep braking as it turns in, easing off the brakes as lateral load builds.
+  function speedProfile(radius, ds, closed, N){
+    const aGrip=(V_MAX*V_MAX)/FLAT_R;   // total grip (the friction circle)
+    const brakeMul=1.9;                 // brakes + aero are strong
+    const accelMul=0.62;                // throttle is power-limited
+    const v=new Array(N);
+    for(let i=0;i<N;i++) v[i]=Math.min(V_MAX, Math.sqrt(aGrip*radius[i]));   // grip cap on the line
+    const passes=closed?5:3;
+    for(let p=0;p<passes;p++){
+      // forward: accelerate out, using only the grip left over from cornering
+      for(let i=0;i<N;i++){ if(!closed && i===0) continue; const pi=(i-1+N)%N;
+        const aLat=Math.min(aGrip, (v[pi]*v[pi])/radius[i]);
+        const aLong=Math.sqrt(Math.max(0, aGrip*aGrip - aLat*aLat))*accelMul;
+        const lim=Math.sqrt(v[pi]*v[pi]+2*aLong*ds[pi]); if(v[i]>lim) v[i]=lim; }
+      // backward: brake into the corner, trailing off as the corner loads up the tyres
+      for(let i=N-1;i>=0;i--){ if(!closed && i===N-1) continue; const ni=(i+1)%N;
+        const aLat=Math.min(aGrip, (v[ni]*v[ni])/radius[i]);
+        const aLong=Math.sqrt(Math.max(0, aGrip*aGrip - aLat*aLat))*brakeMul;
+        const lim=Math.sqrt(v[ni]*v[ni]+2*aLong*ds[i]); if(v[i]>lim) v[i]=lim; }
+    }
+    return v;
+  }
+  function sampleR(rl,d){
+    const {R,cum,total,closed,N,v}=rl;
+    if(total<=0) return {x:R[0].x,y:R[0].y,ang:0,v:0};
+    if(closed) d=((d%total)+total)%total; else d=Math.max(0,Math.min(total,d));
+    for(let i=0;i<N;i++){
+      const ni=(i+1)%N, a=R[i], b=R[ni];
+      const segLen=(i<N-1)?(cum[i+1]-cum[i]):(closed?Math.hypot(b.x-a.x,b.y-a.y):0);
+      if(d<=cum[i]+segLen+1e-4 || i===N-1){
+        const t=segLen>0?(d-cum[i])/segLen:0;
+        return {x:a.x+(b.x-a.x)*t, y:a.y+(b.y-a.y)*t, ang:Math.atan2(b.y-a.y,b.x-a.x), v:v[i]};
+      }
+    }
+    const a=R[N-1]; return {x:a.x,y:a.y,ang:0,v:v[N-1]};
+  }
+  function updateCar(dt){
+    if(racingDirty || !racing){ racing=buildRacingLine(); racingDirty=false; if(racing) carDist=Math.min(carDist, racing.total); }
+    if(!racing){ carPos=null; return; }
+    const s=sampleR(racing, carDist);
+    carPos={x:s.x,y:s.y,ang:s.ang};
+    carDist += s.v*dt;
+    if(carDist>=racing.total){ carDist = racing.closed? carDist-racing.total : 0; carTrail.length=0; }
+    carTrail.push({x:s.x,y:s.y}); if(carTrail.length>12) carTrail.shift();
+    const el=document.getElementById('hudSpeed');
+    if(el) el.innerHTML = Math.round(s.v/V_MAX*340) + ' <small>km/h</small>';
+  }
+
+  function speedColor(f,alpha){
+    f=Math.max(0,Math.min(1,f)); let r,g,b;
+    if(f<0.5){ const t=f/0.5; r=235; g=Math.round(45+t*180); b=35; }      // red -> yellow
+    else { const t=(f-0.5)/0.5; r=Math.round(235-t*195); g=225; b=Math.round(35+t*45); } // yellow -> green
+    return 'rgba('+r+','+g+','+b+','+(alpha==null?1:alpha)+')';
+  }
+  function drawRacingLine(rl){
+    const {R,v,N,closed}=rl;
+    const end=closed?N:N-1;
+    ctx.lineCap='round'; ctx.lineJoin='round';
+    // glow underlay
+    for(let i=0;i<end;i++){ const a=R[i],b=R[(i+1)%N];
+      ctx.strokeStyle=speedColor(v[i]/V_MAX,0.18); ctx.lineWidth=10/cam.s;
+      ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke(); }
+    // crisp line, coloured by speed (green=flat, red=braking)
+    for(let i=0;i<end;i++){ const a=R[i],b=R[(i+1)%N];
+      ctx.strokeStyle=speedColor(v[i]/V_MAX,1); ctx.lineWidth=3.4/cam.s;
+      ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke(); }
+  }
+
+  function rr(x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+  function drawCar(p){
+    if(carTrail.length>2){
+      ctx.lineCap='round'; ctx.lineJoin='round';
+      for(let i=1;i<carTrail.length;i++){
+        ctx.strokeStyle='rgba(225,6,0,'+(i/carTrail.length*0.30)+')';
+        ctx.lineWidth=(TRACK_WORLD*0.10)*(i/carTrail.length);
+        ctx.beginPath(); ctx.moveTo(carTrail[i-1].x,carTrail[i-1].y); ctx.lineTo(carTrail[i].x,carTrail[i].y); ctx.stroke();
+      }
+    }
+    ctx.save();
+    ctx.translate(p.x,p.y); ctx.rotate(p.ang);
+    const L=TRACK_WORLD*0.40, W=TRACK_WORLD*0.19;   // smaller car
+    ctx.fillStyle='#0c0c0d';
+    for(const t of [[L*0.30,-W*0.66],[L*0.30,W*0.66],[-L*0.34,-W*0.70],[-L*0.34,W*0.70]]){ rr(t[0]-W*0.16,t[1]-W*0.13,W*0.40,W*0.26,W*0.05); ctx.fill(); }
+    const grad=ctx.createLinearGradient(0,-W/2,0,W/2);
+    grad.addColorStop(0,'#ff2b22'); grad.addColorStop(0.5,'#e10600'); grad.addColorStop(1,'#a40400');
+    ctx.fillStyle=grad; rr(-L*0.46,-W*0.42,L*0.78,W*0.84,W*0.3); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(L*0.54,0); ctx.lineTo(L*0.30,-W*0.30); ctx.lineTo(L*0.30,W*0.30); ctx.closePath(); ctx.fill();
+    ctx.fillStyle='#141414'; rr(L*0.46,-W*0.62,W*0.16,W*1.24,W*0.04); ctx.fill();
+    rr(-L*0.52,-W*0.6,W*0.18,W*1.2,W*0.04); ctx.fill();
+    ctx.fillStyle='#1b1b1d'; rr(-L*0.04,-W*0.2,L*0.2,W*0.4,W*0.18); ctx.fill();
+    ctx.fillStyle='#2c2c30'; ctx.beginPath(); ctx.arc(L*0.04,0,W*0.13,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+
+  // ---------- animation loop ----------
+  let lastTs=0;
+  function tick(ts){
+    const dt=Math.min(0.05,((ts||0)-lastTs)/1000)||0; lastTs=ts||0;
+    pulse+=0.07;
+    if(carOn) updateCar(dt);
+    const animating = carOn || (pieces.length && !isClosed(build()));
+    if(animating) draw();
+    requestAnimationFrame(tick);
+  }
+
+  // ---------- boot ----------
+  cam.x = 0; cam.y = 0; cam.s = 1;
+  resize();
+  cam.x = cv.clientWidth*0.32; cam.y = cv.clientHeight*0.55;
+  addPiece('straight');
+  addPiece('c90','R');
+  selected=null; refreshSelbar();
+  fitView();
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
