@@ -1262,22 +1262,21 @@
     if(!isClosed(build())) return;
     baseRl=buildRacingLine(); if(!baseRl) return;
     raceOn=true; racePhase='starting'; raceFinishTime=null;
-    const maxLat=(TRACK_WORLD/2-TRACK_WORLD*0.19/2-2)*0.20;
     const gridGap=GRID*2.2;
+    const EDGE0=TRACK_WORLD*0.44, RL0=0.25;
     raceCars=DRIVERS.map((d,idx)=>{
       const t=TEAMS[d.team], row=Math.floor(idx/2), col=idx%2;
       const seed=idx*2.399+0.5;
       const gridDist=((baseRl.total-(row+1)*gridGap)%baseRl.total+baseRl.total)%baseRl.total;
       const gridLat=(col===0?-1:1)*TRACK_WORLD*0.24;
       const gs=sampleRN(baseRl,gridDist);
-      const naturalLat=lineLat(gridDist,baseRl.total,seed)*maxLat;
       return {
         ...d, color:t.color, paceMul:t.str*(0.9975+idx*0.0005),
-        seed, maxLat, dist:gridDist, lapsDone:0,
+        seed, dist:gridDist, lapsDone:0,
         totalDist:-(row+1)*gridGap,
         trail:[], damage:0, dnf:false, finished:false,
         lapVar:1.0,
-        overtakeOff:gridLat-naturalLat, overtakeTgt:0, overtakeTimer:0,
+        lat:gridLat, targetLat:gridLat,
         crashEffect:0,
         pos:{x:gs.x+gs.nx*gridLat, y:gs.y+gs.ny*gridLat}, ang:gs.ang,
         position:idx+1,
@@ -1316,38 +1315,92 @@
 
   function updateRace(dt){
     if(racePhase!=='racing'||!baseRl) return;
+    const total=baseRl.total;
+    const CHLW=TRACK_WORLD*0.13;   // collision half-width (lateral)
+    const CHLL=TRACK_WORLD*0.24;   // collision half-length (longitudinal)
+    const EDGE=TRACK_WORLD*0.44;   // max lateral from centreline (full track use)
+    const RL_SCALE=0.25;           // fraction of EDGE the racing line naturally uses
+    const SPD=1.35;                // global speed multiplier (faster = more braking drama)
+
     for(const car of raceCars){
       if(car.finished||car.dnf) continue;
-      const s=sampleRN(baseRl,car.dist);
       if(car.reactionDelay>0){ car.reactionDelay-=dt; continue; }
-      const spd=s.v*(1/car.paceMul)*(1-car.damage*0.12)*car.lapVar;
-      const dd=spd*dt; car.dist+=dd; car.totalDist+=dd;
-      if(car.dist>=baseRl.total){ car.dist-=baseRl.total; car.lapsDone++; car.lapVar=0.987+Math.random()*0.026; }
-      if(car.lapsDone>=RACE_LAPS){ car.finished=true; if(!raceFinishTime) raceFinishTime=Date.now(); continue; }
-      if(car.overtakeTimer>0) car.overtakeTimer-=dt; else car.overtakeTgt=0;
-      car.overtakeOff+=(car.overtakeTgt-car.overtakeOff)*Math.min(1,dt*3.5);
       car.crashEffect*=0.88;
+
+      // Find nearest car directly ahead in the same lane
+      let blocker=null, blockFwd=Infinity;
+      for(const o of raceCars){
+        if(o===car||o.finished||o.dnf) continue;
+        const fd=((o.dist-car.dist)%total+total)%total;
+        if(fd<0.05||fd>CHLL*5) continue;
+        if(Math.abs(o.lat-car.lat)<CHLW*2.1&&fd<blockFwd){ blocker=o; blockFwd=fd; }
+      }
+
+      // Speed — base from racing line × global multiplier
+      const s=sampleRN(baseRl,car.dist);
+      let spd=s.v*SPD*(1/car.paceMul)*(1-car.damage*0.12)*car.lapVar;
+
+      if(blocker&&blockFwd<CHLL*2.8){
+        // Brake to match car ahead; harder as gap closes
+        const bs=sampleRN(baseRl,blocker.dist);
+        const bSpd=bs.v*SPD*(1/blocker.paceMul)*(1-blocker.damage*0.12)*blocker.lapVar;
+        const t=Math.max(0,Math.min(1,(blockFwd-CHLL)/(CHLL*1.8)));
+        spd=Math.min(spd, bSpd*(0.90+0.12*t));
+      }
+
+      const dd=spd*dt;
+      car.dist+=dd; car.totalDist+=dd;
+      if(car.dist>=total){ car.dist-=total; car.lapsDone++; car.lapVar=0.987+Math.random()*0.026; }
+      if(car.lapsDone>=RACE_LAPS){ car.finished=true; if(!raceFinishTime) raceFinishTime=Date.now(); continue; }
+
+      // Lateral targeting: natural racing line, or move around a blocker
+      const naturalLat=lineLat(car.dist,total,car.seed)*EDGE*RL_SCALE;
+      if(blocker&&blockFwd<CHLL*4){
+        // Measure clearance left and right of current position
+        let lc=EDGE+car.lat, rc=EDGE-car.lat;
+        for(const o of raceCars){
+          if(o===car||o.finished||o.dnf) continue;
+          const fd=((o.dist-car.dist)%total+total)%total;
+          if(fd>CHLL*5) continue;
+          const ls=o.lat-car.lat;
+          if(ls<0) lc=Math.min(lc,-ls-CHLW*2);
+          else     rc=Math.min(rc, ls-CHLW*2);
+        }
+        lc=Math.max(0,lc); rc=Math.max(0,rc);
+        // Commit to the clearer side if there's enough room to fit
+        if(lc>=CHLW*1.8||rc>=CHLW*1.8){
+          const goLeft=lc>rc;
+          car.targetLat=goLeft
+            ?Math.max(-EDGE, car.lat-CHLW*2.6)
+            :Math.min( EDGE, car.lat+CHLW*2.6);
+        }
+        // else stay in line and let braking handle it
+      } else {
+        car.targetLat=naturalLat;
+      }
+      car.targetLat=Math.max(-EDGE,Math.min(EDGE,car.targetLat));
+
+      // Smooth lateral movement
+      car.lat+=(car.targetLat-car.lat)*Math.min(1,dt*2.8);
+      car.lat=Math.max(-EDGE,Math.min(EDGE,car.lat));
+
       const s2=sampleRN(baseRl,car.dist);
-      const lat=lineLat(car.dist,baseRl.total,car.seed)*car.maxLat+car.overtakeOff;
-      car.pos={x:s2.x+s2.nx*lat, y:s2.y+s2.ny*lat};
+      car.pos={x:s2.x+s2.nx*car.lat, y:s2.y+s2.ny*car.lat};
       const da=((s2.ang-car.ang+Math.PI*3)%(Math.PI*2))-Math.PI;
       car.ang+=da*Math.min(1,dt*14);
       car.trail.push({x:car.pos.x,y:car.pos.y}); if(car.trail.length>10) car.trail.shift();
     }
-    // close battles → overtake attempts + rare crashes
+
+    // Contact → bodywork damage
     for(let i=0;i<raceCars.length;i++){
       const a=raceCars[i]; if(a.finished||a.dnf||!a.pos) continue;
       for(let j=i+1;j<raceCars.length;j++){
         const b=raceCars[j]; if(b.finished||b.dnf||!b.pos) continue;
-        const dx=a.pos.x-b.pos.x, dy=a.pos.y-b.pos.y, cw=TRACK_WORLD*0.30;
-        if(dx*dx+dy*dy<cw*cw){
+        const dx=a.pos.x-b.pos.x, dy=a.pos.y-b.pos.y, cl=CHLW*1.6;
+        if(dx*dx+dy*dy<cl*cl){
           const behind=a.totalDist<b.totalDist?a:b;
-          if(behind.overtakeTimer<=0){
-            behind.overtakeTgt=(Math.random()<0.5?1:-1)*TRACK_WORLD*0.22;
-            behind.overtakeTimer=1.6+Math.random()*1.4;
-          }
           const isMerc=a.team==='Mercedes'||b.team==='Mercedes';
-          if(Math.random()<(isMerc?0.0045:0.0015)*dt*60){
+          if(Math.random()<(isMerc?0.003:0.001)*dt*60){
             behind.damage=Math.min(1,behind.damage+0.10+Math.random()*0.14);
             behind.crashEffect=1.0;
             if(behind.damage>0.85&&Math.random()<0.22) behind.dnf=true;
@@ -1355,6 +1408,7 @@
         }
       }
     }
+
     const sorted=[...raceCars].sort((a,b)=>b.totalDist-a.totalDist);
     sorted.forEach((c,i)=>c.position=i+1);
     if(Math.random()<dt*2.5) updateLeaderboard();
@@ -1403,7 +1457,7 @@
     const c = car.color;
     // SVG was 512×512, car centre at (256,286), facing down.
     // Rotated 90° CCW so car faces +x: canvas=(svg_y-286, 256-svg_x)*SC
-    const SC = TRACK_WORLD / 400;
+    const SC = TRACK_WORLD / 560;
     const f = (x,y,w,h,r) => { rr(x*SC,y*SC,w*SC,h*SC,r*SC); ctx.fill(); };
     const p = pts => {
       ctx.beginPath();
