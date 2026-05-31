@@ -1024,21 +1024,16 @@
     }
     // attractor target + weight per point (0 weight = pure curvature there)
     const tgt=new Array(N).fill(0), W=new Array(N).fill(0);
-    // Pin the apex of each corner hard to the inside kerb.
-    // Pin the entry and exit points to the outside kerb.
-    // Curvature minimiser blends these into a smooth out-in-out line.
+    // Apex pinned to inside kerb (strong). Very gentle outside nudge at the
+    // start and end of each arc so entry/exit drift wider without fighting.
     for(const k in groups){
       const idxs=groups[k];
       const n=idxs.length;
       const ia=idxs[Math.floor(n/2)];
       const sgn=pts[ia].inSign;
-      tgt[ia]=sgn*maxOff;   W[ia]=9;    // apex: hard on inside kerb
-      // entry: outside kerb — 20% into the corner arc
-      const ie=idxs[Math.max(0, Math.round(n*0.15))];
-      tgt[ie]=-sgn*maxOff;  W[ie]=6;
-      // exit: outside kerb — 80% through the corner arc
-      const ix=idxs[Math.min(n-1, Math.round(n*0.85))];
-      tgt[ix]=-sgn*maxOff;  W[ix]=6;
+      tgt[ia]=sgn*maxOff;          W[ia]=8;   // apex: inside kerb
+      tgt[idxs[0]]=-sgn*maxOff*0.65;    W[idxs[0]]=2;    // entry: gentle outside
+      tgt[idxs[n-1]]=-sgn*maxOff*0.65;  W[idxs[n-1]]=2;  // exit:  gentle outside
     }
     const off=new Array(N).fill(0);
     const Px=i=>pts[i].x+pts[i].nx*off[i], Py=i=>pts[i].y+pts[i].ny*off[i];
