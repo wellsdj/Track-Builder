@@ -1374,58 +1374,61 @@
       ctx.beginPath(); ctx.arc(0,0,TRACK_WORLD*0.22,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
     }
 
-    const c=car.color;
-    const BL=TRACK_WORLD*0.27;    // body half-length
-    const BW=TRACK_WORLD*0.078;   // body half-width (narrow chassis)
-    const TW=TRACK_WORLD*0.080;   // tyre half-depth (along car axis)
-    const TH=TRACK_WORLD*0.092;   // tyre half-span (across car axis)
-    const TY=BW+TRACK_WORLD*0.052+TH; // tyre centre from car centreline
-    const RX=-BL*0.50;            // rear axle x
-    const FX= BL*0.46;            // front axle x
-    const armLen=TY-TH-BW;        // arm length: body edge to tyre inner edge
-    const tr=TW*0.30;             // tyre corner radius
+    const c = car.color;
+    const S = TRACK_WORLD;
+    const BW = S*0.065;         // body half-width (very narrow spine)
+    const BL = S*0.295;         // body half-length
+    const TW = S*0.093;         // tyre half-depth (longitudinal)
+    const TH = S*0.091;         // tyre half-span (lateral, ~square)
+    const TY = S*0.222;         // tyre centre from car centreline
+    const tr = TH*0.09;         // tiny corner radius → blocky tyre
+    const RX = -S*0.148;        // rear axle x
+    const FX =  S*0.133;        // front axle x
+    const armL = TY-TH-BW;     // suspension arm length
+    const AW = S*0.018;         // arm width
+    const rwT = S*0.038;        // rear wing bar thickness
+    const fwT = S*0.035;        // front wing bar thickness
+    const RWS = TY+TH+S*0.018;  // rear wing half-span (slightly wider than tyres)
+    const FWS = TY+TH-S*0.010;  // front wing half-span
+    const nsL = S*0.072;        // nose stub length
+    const nsW = BW*1.25;        // nose stub half-width
 
-    // rear wing — wide flat bar extending past the tyres
-    ctx.fillStyle=c;
-    rr(-BL-BL*0.28, -(TY+TH*0.55), BL*0.28, (TY+TH*0.55)*2, BW*0.12); ctx.fill();
+    // rear wing (widest element, flat bar)
+    ctx.fillStyle = c;
+    rr(-BL-rwT, -RWS, rwT, RWS*2, S*0.010); ctx.fill();
 
-    // suspension wishbone arms — 2 thin bars each side per axle
-    ctx.fillStyle='#1c1c1c';
-    const aw=TW*0.24;
-    // rear left
-    rr(RX-TW*0.52, -(TY-TH), aw, armLen, tr*0.2); ctx.fill();
-    rr(RX+TW*0.24, -(TY-TH), aw, armLen, tr*0.2); ctx.fill();
-    // rear right
-    rr(RX-TW*0.52, BW, aw, armLen, tr*0.2); ctx.fill();
-    rr(RX+TW*0.24, BW, aw, armLen, tr*0.2); ctx.fill();
-    // front left
-    rr(FX-TW*0.52, -(TY-TH), aw, armLen, tr*0.2); ctx.fill();
-    rr(FX+TW*0.24, -(TY-TH), aw, armLen, tr*0.2); ctx.fill();
-    // front right
-    rr(FX-TW*0.52, BW, aw, armLen, tr*0.2); ctx.fill();
-    rr(FX+TW*0.24, BW, aw, armLen, tr*0.2); ctx.fill();
+    // 3 suspension arms per side — rear axle
+    ctx.fillStyle = '#1e1e1e';
+    for(const dx of [-S*0.052, 0, S*0.052]){
+      rr(RX+dx-AW/2, -(TY-TH), AW, armL, S*0.003); ctx.fill();
+      rr(RX+dx-AW/2,  BW,      AW, armL, S*0.003); ctx.fill();
+    }
+    // 3 suspension arms per side — front axle
+    for(const dx of [-S*0.045, 0, S*0.045]){
+      rr(FX+dx-AW/2, -(TY-TH), AW, armL, S*0.003); ctx.fill();
+      rr(FX+dx-AW/2,  BW,      AW, armL, S*0.003); ctx.fill();
+    }
 
-    // tyres — big rounded-rect blocks, roughly square from above
-    ctx.fillStyle='#111';
-    rr(RX-TW, -(TY+TH), TW*2, TH*2, tr); ctx.fill();  // rear left
-    rr(RX-TW,  TY-TH,   TW*2, TH*2, tr); ctx.fill();  // rear right
-    rr(FX-TW, -(TY+TH), TW*2, TH*2, tr); ctx.fill();  // front left
-    rr(FX-TW,  TY-TH,   TW*2, TH*2, tr); ctx.fill();  // front right
+    // tyres (4 large blocky near-square blocks)
+    ctx.fillStyle = '#111';
+    rr(RX-TW, -(TY+TH), TW*2, TH*2, tr); ctx.fill();   // rear left
+    rr(RX-TW,  TY-TH,   TW*2, TH*2, tr); ctx.fill();   // rear right
+    rr(FX-TW, -(TY+TH), TW*2, TH*2, tr); ctx.fill();   // front left
+    rr(FX-TW,  TY-TH,   TW*2, TH*2, tr); ctx.fill();   // front right
 
-    // main body — narrow flat rect
-    ctx.fillStyle=c;
-    rr(-BL, -BW, BL*2, BW*2, BW*0.28); ctx.fill();
-    // top highlight stripe
-    ctx.fillStyle=lightenC(c,32);
-    rr(-BL*0.62, -BW*0.50, BL*0.98, BW*0.30, BW*0.10); ctx.fill();
+    // main body (very narrow spine)
+    ctx.fillStyle = c;
+    rr(-BL, -BW, BL*2, BW*2, BW*0.30); ctx.fill();
 
-    // cockpit — dark centred rectangle
-    ctx.fillStyle='#111';
-    rr(-BW*0.54, -BW*0.62, BW*1.08, BW*1.24, BW*0.22); ctx.fill();
+    // front wing (flat bar)
+    rr(BL, -FWS, fwT, FWS*2, S*0.010); ctx.fill();
 
-    // front wing — slightly narrower than rear
-    ctx.fillStyle=c;
-    rr(BL*0.86, -(TY+TH*0.38), BL*0.26, (TY+TH*0.38)*2, BW*0.12); ctx.fill();
+    // nose stub
+    rr(BL+fwT, -nsW, nsL, nsW*2, S*0.010); ctx.fill();
+
+    // cockpit (dark rectangle)
+    ctx.fillStyle = '#111';
+    rr(-BW*0.50, -BW*0.65, BW, BW*1.30, BW*0.20); ctx.fill();
 
     // damage chunks
     if(car.damage>0){
@@ -1434,10 +1437,6 @@
         rr((d*0.38-0.16)*BL,(d%2===0?0.42:-0.42)*BW,BW*0.40,BW*0.40,BW*0.08); ctx.fill();
       }
     }
-
-    // driver number on body
-    ctx.font=`bold ${BW*0.92}px var(--mono)`; ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillStyle='rgba(255,255,255,0.92)'; ctx.fillText(car.num, BW*0.10, 0);
 
     ctx.restore();
   }
