@@ -274,6 +274,13 @@
   .btn.race svg{width:14px;height:14px;}
   .btn.race:hover{filter:brightness(1.12);border-color:#ff6b63;color:#fff;}
   .btn.race.active{background:linear-gradient(180deg,#2b2f36,#1a1e24);border-color:var(--line2);box-shadow:none;}
+  .btn.lando{
+    width:100%;margin-top:7px;background:linear-gradient(180deg,#e07000,#a05000);
+    border-color:#FF8000;color:#fff;font-weight:700;letter-spacing:.12em;
+    padding:10px 0;box-shadow:0 4px 14px rgba(255,128,0,.25);
+  }
+  .btn.lando:hover{filter:brightness(1.12);border-color:#ffaa44;color:#fff;}
+  .btn.lando.active{background:linear-gradient(180deg,#2b2f36,#1a1e24);border-color:#FF8000;box-shadow:0 0 10px rgba(255,128,0,.4);}
 </style>
 </head>
 <body>
@@ -318,6 +325,7 @@
     <div class="section-label" style="margin-top:22px;">Race</div>
     <button class="btn race" id="raceBtn">
       <svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M8 5v14l11-7z"/></svg>Race</button>
+    <button class="btn lando" id="landoCamBtn">Lando Cam</button>
 
     <div class="hint">
       <b>Click</b> a sidebar piece to add it, or <b>drag</b> it onto the canvas.<br>
@@ -993,6 +1001,12 @@
     }
   };
 
+  const landoCamBtn=document.getElementById('landoCamBtn');
+  landoCamBtn.onclick=()=>{
+    landoCam=!landoCam;
+    landoCamBtn.classList.toggle('active',landoCam);
+  };
+
   // export / import
   document.getElementById('exportBtn').onclick=()=>{
     const data=JSON.stringify({start, pieces, v:1}, null, 2);
@@ -1026,7 +1040,7 @@
   });
 
   // ---------- race system ----------
-  let raceOn=false, racePhase='idle', raceCars=[], baseRl=null, raceFinishTime=null, lightsLit=0;
+  let raceOn=false, racePhase='idle', raceCars=[], baseRl=null, raceFinishTime=null, lightsLit=0, landoCam=false;
   const V_MAX = GRID*13.5;    // top speed (world px/sec) on straights
   const FLAT_R = GRID*7.5;    // corner radius (world) you can take flat-out
 
@@ -1460,6 +1474,17 @@
     const dt=Math.min(0.05,((ts||0)-lastTs)/1000)||0; lastTs=ts||0;
     pulse+=0.07;
     if(raceOn) updateRace(dt);
+    if(landoCam && raceOn){
+      const lando=raceCars.find(c=>c.short==='NOR');
+      if(lando&&lando.pos){
+        const tgtS=cv.clientWidth/(TRACK_WORLD*7);
+        const tgtX=cv.clientWidth/2-lando.pos.x*tgtS;
+        const tgtY=cv.clientHeight/2-lando.pos.y*tgtS;
+        cam.s+=(tgtS-cam.s)*0.10;
+        cam.x+=(tgtX-cam.x)*0.10;
+        cam.y+=(tgtY-cam.y)*0.10;
+      }
+    }
     const animating = raceOn || (pieces.length && !isClosed(build()));
     if(animating) draw();
     requestAnimationFrame(tick);
