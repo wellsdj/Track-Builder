@@ -1195,7 +1195,7 @@
   function speedProfile(radius, ds, closed, N){
     const aGrip=(V_MAX*V_MAX)/FLAT_R;   // total grip (the friction circle)
     const brakeMul=2.2;                 // brakes + aero are strong
-    const accelMul=0.38;                // power-limited: fast top speed, slow 0-60
+    const accelMul=0.09;                // power-limited: fast top speed, slow 0-60
     const v=new Array(N);
     for(let i=0;i<N;i++) v[i]=Math.min(V_MAX, Math.sqrt(aGrip*radius[i]));   // grip cap on the line
     const passes=closed?5:3;
@@ -1320,7 +1320,7 @@
     const CHLL=TRACK_WORLD*0.24;   // collision half-length (longitudinal)
     const EDGE=TRACK_WORLD*0.44;   // max lateral from centreline (full track use)
     const RL_SCALE=0.25;           // fraction of EDGE the racing line naturally uses
-    const SPD=1.35;                // global speed multiplier (faster = more braking drama)
+    const SPD=1.0;                 // global speed multiplier
 
     for(const car of raceCars){
       if(car.finished||car.dnf) continue;
