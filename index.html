@@ -1216,23 +1216,26 @@
   function sampleRN(rl,d){ const s=sampleR(rl,d); return {...s,nx:-Math.sin(s.ang),ny:Math.cos(s.ang)}; }
 
   const TEAMS={
-    'Mercedes':    {color:'#00D2BE',str:1.000},
-    'Ferrari':     {color:'#E8002D',str:1.005},
+    'McLaren':     {color:'#FF8000',str:1.000},
     'Red Bull':    {color:'#3671C6',str:1.008},
-    'McLaren':     {color:'#FF8000',str:1.012},
-    'Aston Martin':{color:'#358C75',str:1.025},
+    'Mercedes':    {color:'#00D2BE',str:1.012},
+    'Ferrari':     {color:'#E8002D',str:1.016},
+    'Williams':    {color:'#00A3E0',str:1.028},
+    'Aston Martin':{color:'#358C75',str:1.036},
+    'Haas':        {color:'#B6BABD',str:1.043},
   };
+  // 2025 championship order P1–P10
   const DRIVERS=[
-    {name:'Russell',   short:'RUS',num:63, team:'Mercedes'},
-    {name:'Antonelli', short:'ANT',num:12, team:'Mercedes'},
-    {name:'Hamilton',  short:'HAM',num:44, team:'Ferrari'},
-    {name:'Leclerc',   short:'LEC',num:16, team:'Ferrari'},
-    {name:'Verstappen',short:'VER',num:1,  team:'Red Bull'},
-    {name:'Lawson',    short:'LAW',num:30, team:'Red Bull'},
-    {name:'Norris',    short:'NOR',num:4,  team:'McLaren'},
     {name:'Piastri',   short:'PIA',num:81, team:'McLaren'},
+    {name:'Norris',    short:'NOR',num:4,  team:'McLaren'},
+    {name:'Verstappen',short:'VER',num:1,  team:'Red Bull'},
+    {name:'Russell',   short:'RUS',num:63, team:'Mercedes'},
+    {name:'Leclerc',   short:'LEC',num:16, team:'Ferrari'},
+    {name:'Hamilton',  short:'HAM',num:44, team:'Ferrari'},
+    {name:'Antonelli', short:'ANT',num:12, team:'Mercedes'},
+    {name:'Sainz',     short:'SAI',num:55, team:'Williams'},
     {name:'Alonso',    short:'ALO',num:14, team:'Aston Martin'},
-    {name:'Stroll',    short:'STR',num:18, team:'Aston Martin'},
+    {name:'Hulkenberg',short:'HUL',num:27, team:'Haas'},
   ];
   const RACE_LAPS=5;
 
@@ -1251,14 +1254,20 @@
       const t=TEAMS[d.team], row=Math.floor(idx/2), col=idx%2;
       const seed=idx*2.399+0.5;
       const gridDist=((baseRl.total-(row+1)*gridGap)%baseRl.total+baseRl.total)%baseRl.total;
+      const gridLat=(col===0?-1:1)*TRACK_WORLD*0.24;
+      const gs=sampleRN(baseRl,gridDist);
+      const naturalLat=lineLat(gridDist,baseRl.total,seed)*maxLat;
       return {
         ...d, color:t.color, paceMul:t.str*(0.9975+idx*0.0005),
         seed, maxLat, dist:gridDist, lapsDone:0,
         totalDist:-(row+1)*gridGap,
-        gridLat:(col===0?-1:1)*TRACK_WORLD*0.24,
         trail:[], damage:0, dnf:false, finished:false,
-        lapVar:1.0, overtakeOff:0, overtakeTgt:0, overtakeTimer:0, crashEffect:0,
-        pos:null, ang:0, position:idx+1, reactionBonus:0,
+        lapVar:1.0,
+        overtakeOff:gridLat-naturalLat, overtakeTgt:0, overtakeTimer:0,
+        crashEffect:0,
+        pos:{x:gs.x+gs.nx*gridLat, y:gs.y+gs.ny*gridLat}, ang:gs.ang,
+        position:idx+1,
+        reactionDelay:0.200+Math.random()*0.070,
       };
     });
     document.getElementById('raceLeaderboard').style.display='block';
@@ -1271,7 +1280,6 @@
     for(let i=1;i<=5;i++) setTimeout(()=>{ lightsLit=i; refreshLights(); },i*850);
     setTimeout(()=>{
       lightsLit=0; racePhase='racing';
-      raceCars.forEach(c=>{ c.reactionBonus=(Math.random()-0.5)*0.06; });
       refreshLights();
       setTimeout(()=>{ ol.style.opacity='0'; setTimeout(()=>{ ol.style.display='none'; ol.style.opacity='1'; },600); },800);
     }, 5*850+900+Math.random()*1500);
@@ -1297,7 +1305,8 @@
     for(const car of raceCars){
       if(car.finished||car.dnf) continue;
       const s=sampleRN(baseRl,car.dist);
-      const spd=s.v*(1/car.paceMul)*(1-car.damage*0.12)*car.lapVar*(1+(car.reactionBonus||0));
+      if(car.reactionDelay>0){ car.reactionDelay-=dt; continue; }
+      const spd=s.v*(1/car.paceMul)*(1-car.damage*0.12)*car.lapVar;
       const dd=spd*dt; car.dist+=dd; car.totalDist+=dd;
       if(car.dist>=baseRl.total){ car.dist-=baseRl.total; car.lapsDone++; car.lapVar=0.987+Math.random()*0.026; }
       if(car.lapsDone>=RACE_LAPS){ car.finished=true; if(!raceFinishTime) raceFinishTime=Date.now(); continue; }
