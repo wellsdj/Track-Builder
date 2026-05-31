@@ -1359,7 +1359,6 @@
 
   function drawRaceCar(car){
     if(!car.pos) return;
-    // colour trail
     if(car.trail.length>2){
       ctx.lineCap='round'; ctx.lineJoin='round';
       for(let i=1;i<car.trail.length;i++){
@@ -1370,104 +1369,75 @@
     }
     ctx.save(); ctx.translate(car.pos.x,car.pos.y); ctx.rotate(car.ang);
 
-    // dimensions — car is ~55 % of track width
-    const W=TRACK_WORLD*0.26;   // half-width of car body
-    const L=W*3.6;              // half-length of car body
-    const tw=W*0.38, th=W*0.55; // tyre width, height (taller than wide → oval standing up)
-    const c=car.color, dark=darkenC(c,45), light=lightenC(c,45);
-
-    // crash flash
     if(car.crashEffect>0.35){
       ctx.globalAlpha=car.crashEffect*0.6; ctx.fillStyle='#ffe000';
-      ctx.beginPath(); ctx.arc(0,0,W*2,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
+      ctx.beginPath(); ctx.arc(0,0,TRACK_WORLD*0.22,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1;
     }
 
-    // ── rear wing ──────────────────────────────────────────────────────────
-    const rwX=-L*0.88;
-    // end plates
-    ctx.fillStyle='#111';
-    rr(rwX-tw*0.3,-W*1.10,tw*0.6,W*0.55,tw*0.1); ctx.fill();
-    rr(rwX-tw*0.3, W*0.55,tw*0.6,W*0.55,tw*0.1); ctx.fill();
-    // main plane
-    const rwG=ctx.createLinearGradient(0,-W*1.15,0,W*1.15);
-    rwG.addColorStop(0,dark); rwG.addColorStop(0.5,c); rwG.addColorStop(1,dark);
-    ctx.fillStyle=rwG; rr(rwX-L*0.06,-W*1.08,L*0.20,W*0.22,tw*0.06); ctx.fill();
-    // DRS slot gap
-    ctx.fillStyle='#000'; rr(rwX-L*0.06,-W*0.82,L*0.20,W*0.06,tw*0.03); ctx.fill();
-    rr(rwX-L*0.06,-W*0.72,L*0.20,W*0.22,tw*0.06); ctx.fill();
-    ctx.fillStyle=rwG; rr(rwX-L*0.06,-W*0.72,L*0.20,W*0.22,tw*0.06); ctx.fill();
+    const c=car.color;
+    const BL=TRACK_WORLD*0.27;    // body half-length
+    const BW=TRACK_WORLD*0.078;   // body half-width (narrow chassis)
+    const TW=TRACK_WORLD*0.080;   // tyre half-depth (along car axis)
+    const TH=TRACK_WORLD*0.092;   // tyre half-span (across car axis)
+    const TY=BW+TRACK_WORLD*0.052+TH; // tyre centre from car centreline
+    const RX=-BL*0.50;            // rear axle x
+    const FX= BL*0.46;            // front axle x
+    const armLen=TY-TH-BW;        // arm length: body edge to tyre inner edge
+    const tr=TW*0.30;             // tyre corner radius
 
-    // ── tyres (4 corners, rounded-rect upright) ────────────────────────────
-    const tyrePositions=[[L*0.52,-W*1.04],[L*0.52,W*0.50],[-L*0.52,-W*1.04],[-L*0.52,W*0.50]];
-    for(const [tx,ty] of tyrePositions){
-      // tyre body — dark rubber with subtle highlight
-      ctx.fillStyle='#1a1a1a'; rr(tx-tw,ty,tw*2,th,tw*0.28); ctx.fill();
-      // tyre sidewall rim highlight
-      ctx.strokeStyle='#333'; ctx.lineWidth=tw*0.12;
-      ctx.beginPath(); rr(tx-tw*0.5,ty+th*0.12,tw,th*0.76,tw*0.22); ctx.stroke();
-      // rim centre
-      ctx.fillStyle='#2a2a2a'; rr(tx-tw*0.4,ty+th*0.22,tw*0.8,th*0.56,tw*0.16); ctx.fill();
-      ctx.fillStyle='#444'; ctx.beginPath(); ctx.arc(tx,ty+th*0.5,tw*0.22,0,Math.PI*2); ctx.fill();
-    }
-
-    // ── body ──────────────────────────────────────────────────────────────
-    // sidepods (wider, flatter boxes either side)
-    ctx.fillStyle=dark;
-    rr(-L*0.30,-W*1.02,L*0.68,W*0.48,tw*0.12); ctx.fill();
-    rr(-L*0.30, W*0.54,L*0.68,W*0.48,tw*0.12); ctx.fill();
-
-    // main chassis — blocky rounded-rect, flat sides
-    const bodyG=ctx.createLinearGradient(0,-W,0,W);
-    bodyG.addColorStop(0,light); bodyG.addColorStop(0.45,c); bodyG.addColorStop(1,dark);
-    ctx.fillStyle=bodyG; rr(-L,-W*0.72,L*2,W*1.44,tw*0.18); ctx.fill();
-
-    // carbon-fibre centre line accent
-    ctx.strokeStyle='rgba(0,0,0,0.35)'; ctx.lineWidth=tw*0.18;
-    ctx.beginPath(); ctx.moveTo(-L*0.9,0); ctx.lineTo(L*0.7,0); ctx.stroke();
-
-    // engine cover highlight
-    ctx.fillStyle='rgba(255,255,255,0.08)'; rr(-L*0.5,-W*0.28,L*0.9,W*0.56,tw*0.10); ctx.fill();
-
-    // nose cone — tapered wedge
+    // rear wing — wide flat bar extending past the tyres
     ctx.fillStyle=c;
-    ctx.beginPath(); ctx.moveTo(L*1.08,0); ctx.lineTo(L*0.72,-W*0.46); ctx.lineTo(L*0.58,-W*0.46);
-    ctx.lineTo(L*0.44,0); ctx.lineTo(L*0.58,W*0.46); ctx.lineTo(L*0.72,W*0.46); ctx.closePath(); ctx.fill();
-    ctx.fillStyle=dark;
-    ctx.beginPath(); ctx.moveTo(L*1.08,0); ctx.lineTo(L*0.80,-W*0.18); ctx.lineTo(L*0.80,W*0.18); ctx.closePath(); ctx.fill();
+    rr(-BL-BL*0.28, -(TY+TH*0.55), BL*0.28, (TY+TH*0.55)*2, BW*0.12); ctx.fill();
 
-    // ── front wing ────────────────────────────────────────────────────────
-    const fwX=L*0.90;
-    // main plane — wide flat bar
-    const fwG=ctx.createLinearGradient(0,-W*1.30,0,W*1.30);
-    fwG.addColorStop(0,dark); fwG.addColorStop(0.5,c); fwG.addColorStop(1,dark);
-    ctx.fillStyle=fwG; rr(fwX,-W*1.28,L*0.24,W*0.26,tw*0.06); ctx.fill();
-    rr(fwX,-W*0.96,L*0.24,W*0.22,tw*0.06); ctx.fill();
-    rr(fwX, W*0.74,L*0.24,W*0.22,tw*0.06); ctx.fill();
-    rr(fwX, W*1.02,L*0.24,W*0.26,tw*0.06); ctx.fill();
-    // end plates
+    // suspension wishbone arms — 2 thin bars each side per axle
+    ctx.fillStyle='#1c1c1c';
+    const aw=TW*0.24;
+    // rear left
+    rr(RX-TW*0.52, -(TY-TH), aw, armLen, tr*0.2); ctx.fill();
+    rr(RX+TW*0.24, -(TY-TH), aw, armLen, tr*0.2); ctx.fill();
+    // rear right
+    rr(RX-TW*0.52, BW, aw, armLen, tr*0.2); ctx.fill();
+    rr(RX+TW*0.24, BW, aw, armLen, tr*0.2); ctx.fill();
+    // front left
+    rr(FX-TW*0.52, -(TY-TH), aw, armLen, tr*0.2); ctx.fill();
+    rr(FX+TW*0.24, -(TY-TH), aw, armLen, tr*0.2); ctx.fill();
+    // front right
+    rr(FX-TW*0.52, BW, aw, armLen, tr*0.2); ctx.fill();
+    rr(FX+TW*0.24, BW, aw, armLen, tr*0.2); ctx.fill();
+
+    // tyres — big rounded-rect blocks, roughly square from above
     ctx.fillStyle='#111';
-    rr(fwX,-W*1.28,L*0.24,W*0.06,tw*0.03); ctx.fill();
-    rr(fwX, W*1.22,L*0.24,W*0.06,tw*0.03); ctx.fill();
+    rr(RX-TW, -(TY+TH), TW*2, TH*2, tr); ctx.fill();  // rear left
+    rr(RX-TW,  TY-TH,   TW*2, TH*2, tr); ctx.fill();  // rear right
+    rr(FX-TW, -(TY+TH), TW*2, TH*2, tr); ctx.fill();  // front left
+    rr(FX-TW,  TY-TH,   TW*2, TH*2, tr); ctx.fill();  // front right
 
-    // ── damage ────────────────────────────────────────────────────────────
+    // main body — narrow flat rect
+    ctx.fillStyle=c;
+    rr(-BL, -BW, BL*2, BW*2, BW*0.28); ctx.fill();
+    // top highlight stripe
+    ctx.fillStyle=lightenC(c,32);
+    rr(-BL*0.62, -BW*0.50, BL*0.98, BW*0.30, BW*0.10); ctx.fill();
+
+    // cockpit — dark centred rectangle
+    ctx.fillStyle='#111';
+    rr(-BW*0.54, -BW*0.62, BW*1.08, BW*1.24, BW*0.22); ctx.fill();
+
+    // front wing — slightly narrower than rear
+    ctx.fillStyle=c;
+    rr(BL*0.86, -(TY+TH*0.38), BL*0.26, (TY+TH*0.38)*2, BW*0.12); ctx.fill();
+
+    // damage chunks
     if(car.damage>0){
-      ctx.fillStyle='rgba(0,0,0,0.80)';
-      for(let d=0;d<Math.round(car.damage*4);d++){
-        rr((d*0.30-0.20)*L,(d%2===0?0.6:-0.6)*W,W*0.24,W*0.24,tw*0.08); ctx.fill();
+      ctx.fillStyle='rgba(0,0,0,0.82)';
+      for(let d=0;d<Math.round(car.damage*3);d++){
+        rr((d*0.38-0.16)*BL,(d%2===0?0.42:-0.42)*BW,BW*0.40,BW*0.40,BW*0.08); ctx.fill();
       }
     }
 
-    // ── cockpit / halo ─────────────────────────────────────────────────────
-    ctx.fillStyle='#0e0e10'; rr(-L*0.08,-W*0.26,L*0.28,W*0.52,tw*0.14); ctx.fill();
-    // halo bar
-    ctx.strokeStyle='#222'; ctx.lineWidth=tw*0.22;
-    ctx.beginPath(); ctx.moveTo(-L*0.02,-W*0.22); ctx.lineTo(L*0.14,0); ctx.lineTo(-L*0.02,W*0.22); ctx.stroke();
-    // visor tint
-    ctx.fillStyle='rgba(80,160,255,0.25)'; rr(L*0.02,-W*0.18,L*0.14,W*0.36,tw*0.10); ctx.fill();
-
-    // ── driver number ──────────────────────────────────────────────────────
-    ctx.font=`bold ${W*0.50}px var(--mono)`; ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillStyle='rgba(255,255,255,0.90)'; ctx.fillText(car.num, L*0.08, 0);
+    // driver number on body
+    ctx.font=`bold ${BW*0.92}px var(--mono)`; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillStyle='rgba(255,255,255,0.92)'; ctx.fillText(car.num, BW*0.10, 0);
 
     ctx.restore();
   }
